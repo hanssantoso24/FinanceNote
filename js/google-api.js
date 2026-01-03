@@ -22,6 +22,17 @@ const GoogleAPIService = {
                 this.accessToken = savedToken.token;
             }
 
+            // Check if Google APIs are available
+            if (typeof gapi === 'undefined') {
+                console.warn('Google API (gapi) not loaded - Sheets/Drive features disabled');
+                return false;
+            }
+
+            if (typeof google === 'undefined' || !google.accounts) {
+                console.warn('Google Identity Services not loaded - OAuth features disabled');
+                return false;
+            }
+
             // Wait for Google API to load
             await this.waitForGapi();
 
@@ -48,9 +59,11 @@ const GoogleAPIService = {
             });
 
             this.initialized = true;
+            console.log('Google API initialized successfully');
             return true;
         } catch (error) {
-            console.error('Google API init error:', error);
+            console.warn('Google API init warning:', error.message);
+            // Don't throw - app should still work without Google API
             return false;
         }
     },
@@ -60,22 +73,31 @@ const GoogleAPIService = {
      */
     waitForGapi() {
         return new Promise((resolve, reject) => {
-            if (typeof gapi !== 'undefined' && gapi.client) {
+            // Check if gapi exists
+            if (typeof gapi === 'undefined') {
+                reject(new Error('GAPI not available'));
+                return;
+            }
+
+            // If gapi.client is already loaded, resolve immediately
+            if (gapi.client) {
                 resolve();
                 return;
             }
 
-            let attempts = 0;
-            const checkGapi = setInterval(() => {
-                attempts++;
-                if (typeof gapi !== 'undefined' && gapi.client) {
-                    clearInterval(checkGapi);
+            // Load the client library
+            gapi.load('client', {
+                callback: () => {
                     resolve();
-                } else if (attempts > 50) {
-                    clearInterval(checkGapi);
-                    reject(new Error('GAPI failed to load'));
+                },
+                onerror: () => {
+                    reject(new Error('Failed to load GAPI client'));
+                },
+                timeout: 10000,
+                ontimeout: () => {
+                    reject(new Error('GAPI client load timeout'));
                 }
-            }, 100);
+            });
         });
     },
 

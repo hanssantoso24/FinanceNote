@@ -3,12 +3,12 @@
     "short_name": "FinanceNote",
     "description": "Personal finance management with dual-currency support (THB/IDR), budget tracking, and investment projections",
     "version": "3.0.0",
-    "start_url": "/",
+    "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#1a1a2e",
     "theme_color": "#4a90d9",
     "orientation": "portrait-primary",
-    "scope": "/",
+    "scope": "./",
     "icons": [
         {
             "src": "images/icon-72.png",
@@ -68,10 +68,10 @@
             "name": "Add Transaction",
             "short_name": "Add",
             "description": "Add a new transaction",
-            "url": "/?action=add",
+            "url": "./index.html?action=add",
             "icons": [
                 {
-                    "src": "images/shortcut-add.png",
+                    "src": "./images/shortcut-add.png",
                     "sizes": "96x96"
                 }
             ]
@@ -80,10 +80,10 @@
             "name": "View Budget",
             "short_name": "Budget",
             "description": "View budget status",
-            "url": "/?section=budget",
+            "url": "./index.html?section=budget",
             "icons": [
                 {
-                    "src": "images/shortcut-budget.png",
+                    "src": "./images/shortcut-budget.png",
                     "sizes": "96x96"
                 }
             ]

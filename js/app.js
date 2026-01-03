@@ -650,12 +650,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // Register service worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        // Use relative path for GitHub Pages compatibility
+        const swPath = './sw.js';
+        navigator.serviceWorker.register(swPath)
             .then(registration => {
                 console.log('ServiceWorker registered:', registration.scope);
             })
             .catch(error => {
-                console.log('ServiceWorker registration failed:', error);
+                console.warn('ServiceWorker registration failed (app will work without offline support):', error);
             });
     });
 }

@@ -11,6 +11,46 @@ const UtilitiesManager = {
      */
     init() {
         this.utilities = DataManager.getUtilities();
+
+        // Ensure readings arrays exist
+        if (!this.utilities) {
+            this.utilities = {
+                electricity: {
+                    rate: CONFIG.utilities.electricity.defaultRate,
+                    threshold: CONFIG.utilities.electricity.defaultThreshold,
+                    readings: []
+                },
+                water: {
+                    rate: CONFIG.utilities.water.defaultRate,
+                    readings: []
+                }
+            };
+            DataManager.saveUtilities(this.utilities);
+        }
+
+        // Ensure electricity readings array exists
+        if (!this.utilities.electricity) {
+            this.utilities.electricity = {
+                rate: CONFIG.utilities.electricity.defaultRate,
+                threshold: CONFIG.utilities.electricity.defaultThreshold,
+                readings: []
+            };
+        }
+        if (!this.utilities.electricity.readings) {
+            this.utilities.electricity.readings = [];
+        }
+
+        // Ensure water readings array exists
+        if (!this.utilities.water) {
+            this.utilities.water = {
+                rate: CONFIG.utilities.water.defaultRate,
+                readings: []
+            };
+        }
+        if (!this.utilities.water.readings) {
+            this.utilities.water.readings = [];
+        }
+
         this.updateUI();
     },
 
@@ -239,6 +279,12 @@ const UtilitiesManager = {
      * Update UI with utility data
      */
     updateUI() {
+        // Safety check - ensure utilities is initialized
+        if (!this.utilities || !this.utilities.electricity || !this.utilities.water) {
+            console.warn('Utilities not properly initialized');
+            return;
+        }
+
         // Update electricity section
         const elecRate = document.getElementById('electricityRate');
         const elecThreshold = document.getElementById('electricityThreshold');
