@@ -81,56 +81,67 @@ const App = {
         // Transaction form
         const transactionForm = document.getElementById('transactionForm');
         if (transactionForm) {
-            transactionForm.addEventListener('submit', (e) => TransactionsManager.handleSubmit(e));
+            transactionForm.addEventListener('submit', (e) => this.handleTransactionSubmit(e));
         }
 
         // Type selector - update categories
-        const typeSelect = document.getElementById('transactionType');
+        const typeSelect = document.getElementById('txType');
         if (typeSelect) {
             typeSelect.addEventListener('change', (e) => {
                 this.updateCategories(e.target.value);
             });
-            // Initialize with default type
-            this.updateCategories(typeSelect.value);
         }
 
         // Set default date to today
-        const dateInput = document.getElementById('transactionDate');
+        const dateInput = document.getElementById('txDate');
         if (dateInput) {
             dateInput.value = new Date().toISOString().split('T')[0];
         }
 
-        // Filter events
-        const filterType = document.getElementById('filterType');
-        const filterCategory = document.getElementById('filterCategory');
-        const filterCurrency = document.getElementById('filterCurrency');
-        const searchInput = document.getElementById('searchTransactions');
-
-        if (filterType) {
-            filterType.addEventListener('change', (e) => TransactionsManager.setFilter('type', e.target.value));
-        }
-        if (filterCategory) {
-            filterCategory.addEventListener('change', (e) => TransactionsManager.setFilter('category', e.target.value));
-        }
-        if (filterCurrency) {
-            filterCurrency.addEventListener('change', (e) => TransactionsManager.setFilter('currency', e.target.value));
-        }
-        if (searchInput) {
-            searchInput.addEventListener('input', this.debounce((e) => {
-                TransactionsManager.setFilter('search', e.target.value);
-            }, 300));
+        // Reset form button
+        const resetFormBtn = document.getElementById('resetFormBtn');
+        if (resetFormBtn) {
+            resetFormBtn.addEventListener('click', () => {
+                document.getElementById('transactionForm')?.reset();
+                document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+            });
         }
 
-        // Manual exchange rate update
-        const rateForm = document.getElementById('exchangeRateForm');
-        if (rateForm) {
-            rateForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const rateInput = document.getElementById('exchangeRateInput');
-                if (rateInput) {
-                    ExchangeRateService.setRate(parseFloat(rateInput.value));
-                    this.showToast('Exchange rate updated', 'success');
-                }
+        // Filter buttons
+        document.querySelectorAll('.filter-buttons .btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-buttons .btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                const filter = e.target.dataset.filter;
+                TransactionsManager.setFilter('type', filter);
+            });
+        });
+
+        // Category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', (e) => TransactionsManager.setFilter('category', e.target.value));
+        }
+
+        // Date filters
+        const startDateFilter = document.getElementById('startDateFilter');
+        const endDateFilter = document.getElementById('endDateFilter');
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', () => {
+                if (startDateFilter) TransactionsManager.setFilter('dateFrom', startDateFilter.value);
+                if (endDateFilter) TransactionsManager.setFilter('dateTo', endDateFilter.value);
+            });
+        }
+
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                TransactionsManager.clearFilters();
+                if (startDateFilter) startDateFilter.value = '';
+                if (endDateFilter) endDateFilter.value = '';
+                if (categoryFilter) categoryFilter.value = '';
             });
         }
 
@@ -145,53 +156,108 @@ const App = {
             });
         }
 
-        // Budget form
-        const budgetForm = document.getElementById('budgetForm');
-        if (budgetForm) {
-            budgetForm.addEventListener('submit', (e) => BudgetManager.handleSubmit(e));
+        // Manual rate button
+        const manualRateBtn = document.getElementById('manualRateBtn');
+        if (manualRateBtn) {
+            manualRateBtn.addEventListener('click', () => {
+                const newRate = prompt('Enter exchange rate (IDR per THB):', ExchangeRateService.getRate());
+                if (newRate && !isNaN(parseFloat(newRate))) {
+                    ExchangeRateService.setRate(parseFloat(newRate));
+                    this.showToast('Exchange rate updated', 'success');
+                }
+            });
         }
 
-        // Investment form
-        const investmentForm = document.getElementById('investmentForm');
-        if (investmentForm) {
-            investmentForm.addEventListener('submit', (e) => InvestmentsManager.handleSubmit(e));
+        // Cloud Sign In button (in the sync bar)
+        const cloudSignInBtn = document.getElementById('cloudSignInBtn');
+        if (cloudSignInBtn) {
+            cloudSignInBtn.addEventListener('click', () => this.signInWithGoogle());
         }
 
-        // Electricity form
-        const electricityForm = document.getElementById('electricityForm');
-        if (electricityForm) {
-            electricityForm.addEventListener('submit', (e) => UtilitiesManager.handleElectricitySubmit(e));
-        }
-
-        // Water form
-        const waterForm = document.getElementById('waterForm');
-        if (waterForm) {
-            waterForm.addEventListener('submit', (e) => UtilitiesManager.handleWaterSubmit(e));
-        }
-
-        // Save utility rates
-        const saveRatesBtn = document.getElementById('saveUtilityRates');
-        if (saveRatesBtn) {
-            saveRatesBtn.addEventListener('click', () => UtilitiesManager.saveRates());
-        }
-
-        // Cloud sync button
-        const cloudSyncBtn = document.getElementById('cloudSyncBtn');
-        if (cloudSyncBtn) {
-            cloudSyncBtn.addEventListener('click', () => this.openModal('cloudSyncModal'));
-        }
-
-        // Settings button
+        // Settings buttons (header and footer)
+        const headerSettingsBtn = document.getElementById('headerSettingsBtn');
         const settingsBtn = document.getElementById('settingsBtn');
+        if (headerSettingsBtn) {
+            headerSettingsBtn.addEventListener('click', () => this.openModal('settingsModal'));
+        }
         if (settingsBtn) {
             settingsBtn.addEventListener('click', () => this.openModal('settingsModal'));
         }
 
-        // Sheets button
-        const sheetsBtn = document.getElementById('sheetsBtn');
-        if (sheetsBtn) {
-            sheetsBtn.addEventListener('click', () => this.openModal('sheetsModal'));
+        // Help button
+        const headerHelpBtn = document.getElementById('headerHelpBtn');
+        const helpBtn = document.getElementById('helpBtn');
+        if (headerHelpBtn) {
+            headerHelpBtn.addEventListener('click', () => this.showHelp());
         }
+        if (helpBtn) {
+            helpBtn.addEventListener('click', () => this.showHelp());
+        }
+
+        // Budget configure button
+        const editBudgetBtn = document.getElementById('editBudgetBtn');
+        if (editBudgetBtn) {
+            editBudgetBtn.addEventListener('click', () => this.openModal('budgetModal'));
+        }
+
+        // Investment edit button
+        const editInvestmentsBtn = document.getElementById('editInvestmentsBtn');
+        if (editInvestmentsBtn) {
+            editInvestmentsBtn.addEventListener('click', () => this.openModal('investmentModal'));
+        }
+
+        // Balance edit buttons
+        const editBankBalanceBtn = document.getElementById('editBankBalanceBtn');
+        const editCashBalanceBtn = document.getElementById('editCashBalanceBtn');
+        if (editBankBalanceBtn) {
+            editBankBalanceBtn.addEventListener('click', () => this.editBalance('bank'));
+        }
+        if (editCashBalanceBtn) {
+            editCashBalanceBtn.addEventListener('click', () => this.editBalance('cash'));
+        }
+
+        // Utility settings button
+        const utilitySettingsBtn = document.getElementById('utilitySettingsBtn');
+        if (utilitySettingsBtn) {
+            utilitySettingsBtn.addEventListener('click', () => this.openModal('utilitySettingsModal'));
+        }
+
+        // Electricity calculate button
+        const calculateElectricityBtn = document.getElementById('calculateElectricityBtn');
+        if (calculateElectricityBtn) {
+            calculateElectricityBtn.addEventListener('click', () => this.calculateElectricity());
+        }
+
+        // Water calculate button
+        const calculateWaterBtn = document.getElementById('calculateWaterBtn');
+        if (calculateWaterBtn) {
+            calculateWaterBtn.addEventListener('click', () => this.calculateWater());
+        }
+
+        // Export button
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => TransactionsManager.exportToCSV());
+        }
+
+        // Sync to Sheets button
+        const syncToSheetsBtn = document.getElementById('syncToSheetsBtn');
+        if (syncToSheetsBtn) {
+            syncToSheetsBtn.addEventListener('click', () => this.exportToSheets());
+        }
+
+        // Backup/Restore buttons
+        const backupBtn = document.getElementById('backupBtn');
+        const restoreBtn = document.getElementById('restoreBtn');
+        if (backupBtn) {
+            backupBtn.addEventListener('click', () => this.backupData());
+        }
+        if (restoreBtn) {
+            restoreBtn.addEventListener('click', () => this.restoreData());
+        }
+
+        // Setup wizard buttons
+        this.bindSetupWizardEvents();
 
         // Listen for Firebase auth changes
         window.addEventListener('userSignedIn', (e) => this.onUserSignedIn(e.detail.user));
@@ -210,6 +276,415 @@ const App = {
             BudgetManager.updateUI();
             ChartsManager.updateAll();
         });
+    },
+
+    /**
+     * Bind setup wizard events
+     */
+    bindSetupWizardEvents() {
+        // Start setup button
+        const startSetupBtn = document.getElementById('startSetupBtn');
+        if (startSetupBtn) {
+            startSetupBtn.addEventListener('click', () => this.nextWizardStep());
+        }
+
+        // Import data button
+        const importDataBtn = document.getElementById('importDataBtn');
+        if (importDataBtn) {
+            importDataBtn.addEventListener('click', () => this.importDataFromFile());
+        }
+
+        // Wizard Google Sign In
+        const wizardGoogleSignInBtn = document.getElementById('wizardGoogleSignInBtn');
+        if (wizardGoogleSignInBtn) {
+            wizardGoogleSignInBtn.addEventListener('click', () => this.signInWithGoogle());
+        }
+
+        // Skip cloud button
+        const skipCloudBtn = document.getElementById('skipCloudBtn');
+        if (skipCloudBtn) {
+            skipCloudBtn.addEventListener('click', () => this.nextWizardStep());
+        }
+
+        // Wizard navigation buttons
+        for (let i = 2; i <= 5; i++) {
+            const prevBtn = document.getElementById(`prevStep${i}Btn`);
+            const nextBtn = document.getElementById(`nextStep${i}Btn`);
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => this.prevWizardStep());
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => this.nextWizardStep());
+            }
+        }
+
+        // Finish setup button
+        const finishSetupBtn = document.getElementById('finishSetupBtn');
+        if (finishSetupBtn) {
+            finishSetupBtn.addEventListener('click', () => this.completeSetup());
+        }
+
+        // Category tabs
+        document.querySelectorAll('.category-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                this.loadCategoriesForType(e.target.dataset.type);
+            });
+        });
+    },
+
+    /**
+     * Handle transaction form submit
+     */
+    handleTransactionSubmit(e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const transaction = {
+            date: document.getElementById('txDate')?.value,
+            amount: parseFloat(document.getElementById('txAmount')?.value),
+            type: document.getElementById('txType')?.value,
+            description: document.getElementById('txDescription')?.value,
+            category: document.getElementById('txCategory')?.value,
+            paymentMethod: document.getElementById('txPaymentMethod')?.value,
+            notes: document.getElementById('txNotes')?.value,
+            currency: 'THB'
+        };
+
+        if (!transaction.date || !transaction.amount || !transaction.type || !transaction.description) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        TransactionsManager.add(transaction);
+        this.showToast('Transaction added successfully', 'success');
+        form.reset();
+        document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+    },
+
+    /**
+     * Next wizard step
+     */
+    nextWizardStep() {
+        if (!this.currentWizardStep) this.currentWizardStep = 1;
+
+        // Save current step data
+        this.saveWizardStepData(this.currentWizardStep);
+
+        this.currentWizardStep++;
+        this.updateWizardDisplay();
+    },
+
+    /**
+     * Previous wizard step
+     */
+    prevWizardStep() {
+        if (this.currentWizardStep > 1) {
+            this.currentWizardStep--;
+            this.updateWizardDisplay();
+        }
+    },
+
+    /**
+     * Update wizard display
+     */
+    updateWizardDisplay() {
+        // Hide all steps
+        for (let i = 1; i <= 5; i++) {
+            const step = document.getElementById(`step${i}`);
+            if (step) {
+                step.classList.remove('active');
+                step.style.display = 'none';
+            }
+        }
+
+        // Show current step
+        const currentStep = document.getElementById(`step${this.currentWizardStep}`);
+        if (currentStep) {
+            currentStep.classList.add('active');
+            currentStep.style.display = 'block';
+        }
+
+        // Update progress bar
+        const progress = document.getElementById('wizardProgress');
+        if (progress) {
+            progress.style.width = `${(this.currentWizardStep / 5) * 100}%`;
+        }
+    },
+
+    /**
+     * Save wizard step data
+     */
+    saveWizardStepData(step) {
+        switch(step) {
+            case 3: // Balances
+                const bankBalance = parseFloat(document.getElementById('initialBankBalance')?.value) || 0;
+                const cashBalance = parseFloat(document.getElementById('initialCashBalance')?.value) || 0;
+                DataManager.saveBalances({
+                    thb: bankBalance + cashBalance,
+                    idr: 0,
+                    bank: bankBalance,
+                    cash: cashBalance
+                });
+                break;
+            case 5: // Utilities
+                const elecReading = parseFloat(document.getElementById('initialElectricityReading')?.value) || 0;
+                const elecRate = parseFloat(document.getElementById('electricityRateSetup')?.value) || 8;
+                const waterReading = parseFloat(document.getElementById('initialWaterReading')?.value) || 0;
+                const waterRate = parseFloat(document.getElementById('waterRateSetup')?.value) || 20;
+
+                DataManager.saveUtilities({
+                    electricity: {
+                        rate: elecRate,
+                        threshold: 3,
+                        readings: [],
+                        lastReading: elecReading
+                    },
+                    water: {
+                        rate: waterRate,
+                        readings: [],
+                        lastReading: waterReading
+                    }
+                });
+                break;
+        }
+    },
+
+    /**
+     * Edit balance
+     */
+    editBalance(type) {
+        const balances = DataManager.getBalances();
+        const currentValue = type === 'bank' ? (balances.bank || 0) : (balances.cash || 0);
+        const newValue = prompt(`Enter new ${type} balance (THB):`, currentValue);
+
+        if (newValue !== null && !isNaN(parseFloat(newValue))) {
+            if (type === 'bank') {
+                balances.bank = parseFloat(newValue);
+            } else {
+                balances.cash = parseFloat(newValue);
+            }
+            balances.thb = (balances.bank || 0) + (balances.cash || 0);
+            DataManager.saveBalances(balances);
+            this.updateBalanceDisplay();
+            this.showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} balance updated`, 'success');
+        }
+    },
+
+    /**
+     * Update balance display
+     */
+    updateBalanceDisplay() {
+        const balances = DataManager.getBalances();
+        const rate = ExchangeRateService.getRate();
+
+        // Bank balance
+        const bankValue = document.getElementById('bankBalanceValue');
+        const bankIDRValue = document.getElementById('bankBalanceIDRValue');
+        if (bankValue) bankValue.textContent = ExchangeRateService.formatNumber(balances.bank || 0);
+        if (bankIDRValue) bankIDRValue.textContent = ExchangeRateService.formatNumber((balances.bank || 0) * rate);
+
+        // Cash balance
+        const cashValue = document.getElementById('cashBalanceValue');
+        const cashIDRValue = document.getElementById('cashBalanceIDRValue');
+        if (cashValue) cashValue.textContent = ExchangeRateService.formatNumber(balances.cash || 0);
+        if (cashIDRValue) cashIDRValue.textContent = ExchangeRateService.formatNumber((balances.cash || 0) * rate);
+
+        // Total balance
+        const totalBalance = document.getElementById('totalBalanceTHB');
+        if (totalBalance) totalBalance.textContent = `฿ ${ExchangeRateService.formatNumber(balances.thb || 0)}`;
+    },
+
+    /**
+     * Calculate electricity
+     */
+    calculateElectricity() {
+        const currentReading = parseFloat(document.getElementById('electricityCurrentReading')?.value);
+        const currentDate = document.getElementById('electricityCurrentDate')?.value;
+
+        if (isNaN(currentReading) || !currentDate) {
+            this.showToast('Please enter current reading and date', 'error');
+            return;
+        }
+
+        const utilities = DataManager.getUtilities();
+        const lastReading = utilities.electricity.lastReading || 0;
+        const rate = utilities.electricity.rate || 8;
+
+        const usage = currentReading - lastReading;
+        const cost = usage * rate;
+
+        // Show result
+        document.getElementById('electricityTotal').textContent = `${usage.toFixed(2)} kWh`;
+        document.getElementById('electricityCostTHB').textContent = `฿ ${cost.toFixed(2)}`;
+        document.getElementById('electricityCalcResult').style.display = 'block';
+
+        // Save electricity button
+        const saveBtn = document.getElementById('saveElectricityBtn');
+        if (saveBtn) {
+            saveBtn.onclick = () => {
+                utilities.electricity.lastReading = currentReading;
+                utilities.electricity.readings.unshift({
+                    date: currentDate,
+                    reading: currentReading,
+                    usage: usage,
+                    cost: cost
+                });
+                DataManager.saveUtilities(utilities);
+
+                // Add as expense
+                TransactionsManager.add({
+                    date: currentDate,
+                    amount: cost,
+                    type: 'expense',
+                    category: 'Utilities',
+                    description: `Electricity bill: ${usage.toFixed(2)} kWh`,
+                    currency: 'THB'
+                });
+
+                this.showToast('Electricity reading saved', 'success');
+                document.getElementById('electricityCalcResult').style.display = 'none';
+            };
+        }
+    },
+
+    /**
+     * Calculate water
+     */
+    calculateWater() {
+        const currentReading = parseFloat(document.getElementById('waterCurrentReading')?.value);
+        const currentDate = document.getElementById('waterCurrentDate')?.value;
+
+        if (isNaN(currentReading) || !currentDate) {
+            this.showToast('Please enter current reading and date', 'error');
+            return;
+        }
+
+        const utilities = DataManager.getUtilities();
+        const lastReading = utilities.water.lastReading || 0;
+        const rate = utilities.water.rate || 20;
+
+        const usage = currentReading - lastReading;
+        const cost = usage * rate;
+
+        // Show result
+        document.getElementById('waterTotal').textContent = `${usage.toFixed(2)} units`;
+        document.getElementById('waterCostTHB').textContent = `฿ ${cost.toFixed(2)}`;
+        document.getElementById('waterCalcResult').style.display = 'block';
+
+        // Save water button
+        const saveBtn = document.getElementById('saveWaterBtn');
+        if (saveBtn) {
+            saveBtn.onclick = () => {
+                utilities.water.lastReading = currentReading;
+                utilities.water.readings.unshift({
+                    date: currentDate,
+                    reading: currentReading,
+                    usage: usage,
+                    cost: cost
+                });
+                DataManager.saveUtilities(utilities);
+
+                // Add as expense
+                TransactionsManager.add({
+                    date: currentDate,
+                    amount: cost,
+                    type: 'expense',
+                    category: 'Utilities',
+                    description: `Water bill: ${usage.toFixed(2)} units`,
+                    currency: 'THB'
+                });
+
+                this.showToast('Water reading saved', 'success');
+                document.getElementById('waterCalcResult').style.display = 'none';
+            };
+        }
+    },
+
+    /**
+     * Backup data
+     */
+    backupData() {
+        const data = StorageService.exportAll();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `finance_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast('Backup downloaded', 'success');
+    },
+
+    /**
+     * Restore data
+     */
+    restoreData() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    StorageService.importAll(data);
+                    this.showToast('Data restored successfully. Reloading...', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } catch (err) {
+                    this.showToast('Invalid backup file', 'error');
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    },
+
+    /**
+     * Import data from file (for setup wizard)
+     */
+    importDataFromFile() {
+        this.restoreData();
+    },
+
+    /**
+     * Show help
+     */
+    showHelp() {
+        alert('Hans Financial Note v3.0.0\n\nA personal finance management app with:\n- Dual currency support (THB/IDR)\n- Budget tracking\n- Investment projections\n- Utility monitoring\n- Cloud sync with Google\n\nFor support, contact the developer.');
+    },
+
+    /**
+     * Load categories for type (setup wizard)
+     */
+    loadCategoriesForType(type) {
+        const container = document.getElementById('initialCategoriesContainer');
+        if (!container) return;
+
+        const categories = DataManager.getCategories();
+        const list = categories[type] || [];
+
+        container.innerHTML = list.map(cat => `
+            <div class="category-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 4px 0; background: white; border-radius: 4px;">
+                <span>${cat}</span>
+                <button class="btn btn-sm btn-danger" onclick="App.removeCategory('${type}', '${cat}')">&times;</button>
+            </div>
+        `).join('');
+    },
+
+    /**
+     * Remove category
+     */
+    removeCategory(type, category) {
+        const categories = DataManager.getCategories();
+        categories[type] = categories[type].filter(c => c !== category);
+        DataManager.saveCategories(categories);
+        this.loadCategoriesForType(type);
     },
 
     /**
