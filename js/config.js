@@ -42,7 +42,7 @@ const CONFIG = {
         projectId: "financial-note-7b9a7",
         storageBucket: "financial-note-7b9a7.firebasestorage.app",
         messagingSenderId:  "471750054704",
-        appId: ""1:471750054704:web:5522228f68a1a9da412ef5""
+        appId: "1:471750054704:web:5522228f68a1a9da412ef5"
     },
 
     // Google API Configuration
