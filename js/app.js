@@ -25,14 +25,27 @@ const App = {
             // Initialize Firebase
             await FirebaseService.init();
 
-            // Initialize Google API
-            await GoogleAPIService.init();
+            // Initialize Google API - WITH ERROR HANDLING
+            try {
+                await GoogleAPIService.init();
+            } catch (googleError) {
+                console.warn('Google API init warning (continuing without Google Sheets):', googleError);
+                // Don't throw error, just continue without Google Sheets
+            }
 
             // Initialize managers
             TransactionsManager.init();
             BudgetManager.init();
             InvestmentsManager.init();
-            UtilitiesManager.init();
+            
+            // Initialize UtilitiesManager - WITH ERROR HANDLING
+            try {
+                UtilitiesManager.init();
+            } catch (utilsError) {
+                console.warn('UtilitiesManager init warning (continuing without utilities):', utilsError);
+                // Don't throw error, just continue without utilities
+            }
+            
             ModalsManager.init();
 
             // Initialize charts (after a small delay to ensure DOM is ready)
@@ -244,7 +257,14 @@ const App = {
         TransactionsManager.updateBalanceDisplay();
         BudgetManager.updateUI();
         InvestmentsManager.updateUI();
-        UtilitiesManager.updateUI();
+        
+        // Update Utilities UI only if it initialized successfully
+        try {
+            UtilitiesManager.updateUI();
+        } catch (error) {
+            console.warn('Could not update Utilities UI:', error);
+        }
+        
         ExchangeRateService.updateUI();
     },
 
