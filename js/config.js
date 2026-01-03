@@ -41,7 +41,7 @@ const CONFIG = {
         authDomain: "financial-note-7b9a7.firebaseapp.com",
         projectId: "financial-note-7b9a7",
         storageBucket: "financial-note-7b9a7.firebasestorage.app",
-        messagingSenderId:  "471750054704",
+        messagingSenderId: "471750054704",
         appId: "1:471750054704:web:5522228f68a1a9da412ef5"
     },
 
