@@ -37,18 +37,18 @@ const CONFIG = {
     // Firebase Configuration
     // Users should replace these with their own Firebase project credentials
     firebase: {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyDf2NJhrsfy30bz135djNTFVNa9G9C37UY",
+        authDomain: "financial-note-7b9a7.firebaseapp.com",
+        projectId: "financial-note-7b9a7",
+        storageBucket: "financial-note-7b9a7.firebasestorage.app",
+        messagingSenderId:  "471750054704",
+        appId: ""1:471750054704:web:5522228f68a1a9da412ef5""
     },
 
     // Google API Configuration
     google: {
-        clientId: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
-        apiKey: "YOUR_GOOGLE_API_KEY",
+        clientId: "471750054704-npa9mbgfco4qb329uk8spcs42ldr5lke.apps.googleusercontent.com",
+        apiKey: "AIzaSyBKEsEVuP6IDhulQ1xzlTn4Gny-2ThmCdg",
         scopes: [
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive.file',
