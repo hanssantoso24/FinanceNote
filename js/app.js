@@ -232,7 +232,10 @@ const App = {
      */
     showLoading() {
         const overlay = document.getElementById('loadingOverlay');
-        if (overlay) overlay.classList.add('active');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
+        }
     },
 
     /**
@@ -240,7 +243,13 @@ const App = {
      */
     hideLoading() {
         const overlay = document.getElementById('loadingOverlay');
-        if (overlay) overlay.classList.remove('active');
+        if (overlay) {
+            overlay.classList.add('hidden');
+            // Also set display none after transition
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+        }
     },
 
     /**
