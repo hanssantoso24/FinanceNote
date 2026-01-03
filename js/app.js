@@ -3,9 +3,13 @@
  * Core application logic and initialization
  */
 
+// Luxon DateTime Library
+const DateTime = luxon.DateTime;
+
 const App = {
     isLoading: true,
     isSetupComplete: false,
+    clockInterval: null,
 
     /**
      * Initialize the application
@@ -19,6 +23,9 @@ const App = {
             // Check if setup is complete
             this.isSetupComplete = DataManager.isSetupComplete();
 
+            // Initialize real-time clock
+            this.initializeDateTime();
+
             // Initialize core services
             ExchangeRateService.init();
 
@@ -30,22 +37,20 @@ const App = {
                 await GoogleAPIService.init();
             } catch (googleError) {
                 console.warn('Google API init warning (continuing without Google Sheets):', googleError);
-                // Don't throw error, just continue without Google Sheets
             }
 
             // Initialize managers
             TransactionsManager.init();
             BudgetManager.init();
             InvestmentsManager.init();
-            
+
             // Initialize UtilitiesManager - WITH ERROR HANDLING
             try {
                 UtilitiesManager.init();
             } catch (utilsError) {
                 console.warn('UtilitiesManager init warning (continuing without utilities):', utilsError);
-                // Don't throw error, just continue without utilities
             }
-            
+
             ModalsManager.init();
 
             // Initialize charts (after a small delay to ensure DOM is ready)
@@ -64,6 +69,9 @@ const App = {
             // Set up auto-sync
             this.setupAutoSync();
 
+            // Update online/offline status
+            this.updateConnectionStatus();
+
             this.hideLoading();
             console.log('App initialized successfully');
 
@@ -71,6 +79,107 @@ const App = {
             console.error('App initialization error:', error);
             this.hideLoading();
             this.showToast('Error initializing app', 'error');
+        }
+    },
+
+    /**
+     * Initialize real-time date and time display
+     */
+    initializeDateTime() {
+        // Update immediately
+        this.updateDateTime();
+
+        // Update every second
+        if (this.clockInterval) {
+            clearInterval(this.clockInterval);
+        }
+        this.clockInterval = setInterval(() => {
+            this.updateDateTime();
+        }, 1000);
+
+        // Update current year in footer
+        const yearElement = document.getElementById('currentYear');
+        if (yearElement) {
+            yearElement.textContent = DateTime.now().year;
+        }
+
+        // Set today's date in form inputs
+        this.setDefaultDates();
+    },
+
+    /**
+     * Update date and time display
+     */
+    updateDateTime() {
+        const now = DateTime.now();
+        const dateTimeElement = document.getElementById('currentDateTime');
+
+        if (dateTimeElement) {
+            // Format: January 3, 2026 at 11:15:17 PM GMT+7
+            const dateTimeStr = now.toFormat("MMMM d, yyyy 'at' h:mm:ss a 'GMT'ZZ");
+            dateTimeElement.textContent = dateTimeStr;
+        }
+    },
+
+    /**
+     * Set default dates on form inputs
+     */
+    setDefaultDates() {
+        const today = DateTime.now().toISODate();
+
+        const dateInputs = [
+            'txDate',
+            'electricityCurrentDate',
+            'waterCurrentDate',
+            'startDateFilter',
+            'endDateFilter'
+        ];
+
+        dateInputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input && !input.value) {
+                input.value = today;
+            }
+        });
+    },
+
+    /**
+     * Update connection status
+     */
+    updateConnectionStatus() {
+        const statusBadge = document.getElementById('appStatusBadge');
+        if (statusBadge) {
+            if (navigator.onLine) {
+                statusBadge.innerHTML = '<i class="fas fa-circle"></i> <span>Online</span>';
+                statusBadge.className = 'badge online';
+            } else {
+                statusBadge.innerHTML = '<i class="fas fa-circle"></i> <span>Offline</span>';
+                statusBadge.className = 'badge offline';
+            }
+        }
+
+        // Listen for online/offline events
+        window.addEventListener('online', () => this.handleConnectionChange(true));
+        window.addEventListener('offline', () => this.handleConnectionChange(false));
+    },
+
+    /**
+     * Handle connection change
+     */
+    handleConnectionChange(isOnline) {
+        const statusBadge = document.getElementById('appStatusBadge');
+        if (statusBadge) {
+            if (isOnline) {
+                statusBadge.innerHTML = '<i class="fas fa-circle"></i> <span>Online</span>';
+                statusBadge.className = 'badge online';
+                // Refresh exchange rate when coming online
+                ExchangeRateService.fetchRate();
+                this.showToast('Back online - syncing data', 'success');
+            } else {
+                statusBadge.innerHTML = '<i class="fas fa-circle"></i> <span>Offline</span>';
+                statusBadge.className = 'badge offline';
+                this.showToast('You are offline - data saved locally', 'warning');
+            }
         }
     },
 
@@ -197,13 +306,13 @@ const App = {
         // Budget configure button
         const editBudgetBtn = document.getElementById('editBudgetBtn');
         if (editBudgetBtn) {
-            editBudgetBtn.addEventListener('click', () => this.openModal('budgetModal'));
+            editBudgetBtn.addEventListener('click', () => this.openBudgetModal());
         }
 
         // Investment edit button
         const editInvestmentsBtn = document.getElementById('editInvestmentsBtn');
         if (editInvestmentsBtn) {
-            editInvestmentsBtn.addEventListener('click', () => this.openModal('investmentModal'));
+            editInvestmentsBtn.addEventListener('click', () => this.openInvestmentModal());
         }
 
         // Balance edit buttons
@@ -276,6 +385,84 @@ const App = {
             BudgetManager.updateUI();
             ChartsManager.updateAll();
         });
+
+        // Save electricity reading button
+        const saveElectricityBtn = document.getElementById('saveElectricityBtn');
+        if (saveElectricityBtn) {
+            saveElectricityBtn.addEventListener('click', () => this.saveElectricityReading());
+        }
+
+        // Cancel electricity button
+        const cancelElectricityBtn = document.getElementById('cancelElectricityBtn');
+        if (cancelElectricityBtn) {
+            cancelElectricityBtn.addEventListener('click', () => {
+                document.getElementById('electricityCalcResult').style.display = 'none';
+            });
+        }
+
+        // Save water reading button
+        const saveWaterBtn = document.getElementById('saveWaterBtn');
+        if (saveWaterBtn) {
+            saveWaterBtn.addEventListener('click', () => this.saveWaterReading());
+        }
+
+        // Cancel water button
+        const cancelWaterBtn = document.getElementById('cancelWaterBtn');
+        if (cancelWaterBtn) {
+            cancelWaterBtn.addEventListener('click', () => {
+                document.getElementById('waterCalcResult').style.display = 'none';
+            });
+        }
+
+        // Add past reading button
+        const addPastReadingBtn = document.getElementById('addPastReadingBtn');
+        if (addPastReadingBtn) {
+            addPastReadingBtn.addEventListener('click', () => this.openPastReadingModal());
+        }
+
+        // Utility history button
+        const utilityHistoryBtn = document.getElementById('utilityHistoryBtn');
+        if (utilityHistoryBtn) {
+            utilityHistoryBtn.addEventListener('click', () => this.showUtilityHistory());
+        }
+
+        // Utility export button
+        const utilityExportBtn = document.getElementById('utilityExportBtn');
+        if (utilityExportBtn) {
+            utilityExportBtn.addEventListener('click', () => this.exportUtilityData());
+        }
+
+        // Sync to Sheets button (alternate ID)
+        const syncToSheetsBtnAlt = document.getElementById('syncToSheetsBtn');
+        if (syncToSheetsBtnAlt) {
+            syncToSheetsBtnAlt.addEventListener('click', () => this.syncToGoogleSheets());
+        }
+
+        // Bank history and adjust buttons
+        const bankHistoryBtn = document.getElementById('bankHistoryBtn');
+        const bankAdjustBtn = document.getElementById('bankAdjustBtn');
+        if (bankHistoryBtn) {
+            bankHistoryBtn.addEventListener('click', () => this.showBalanceHistory('bank'));
+        }
+        if (bankAdjustBtn) {
+            bankAdjustBtn.addEventListener('click', () => this.adjustBalance('bank'));
+        }
+
+        // Cash history and adjust buttons
+        const cashHistoryBtn = document.getElementById('cashHistoryBtn');
+        const cashAdjustBtn = document.getElementById('cashAdjustBtn');
+        if (cashHistoryBtn) {
+            cashHistoryBtn.addEventListener('click', () => this.showBalanceHistory('cash'));
+        }
+        if (cashAdjustBtn) {
+            cashAdjustBtn.addEventListener('click', () => this.adjustBalance('cash'));
+        }
+
+        // Reset all data button
+        const resetAllDataBtn = document.getElementById('resetAllDataBtn');
+        if (resetAllDataBtn) {
+            resetAllDataBtn.addEventListener('click', () => this.resetAllData());
+        }
     },
 
     /**
@@ -1108,6 +1295,781 @@ const App = {
      */
     reload() {
         window.location.reload();
+    },
+
+    /**
+     * Save electricity reading
+     */
+    saveElectricityReading() {
+        const currentReading = parseFloat(document.getElementById('electricityCurrentReading')?.value);
+        const currentDate = document.getElementById('electricityCurrentDate')?.value;
+
+        if (isNaN(currentReading) || !currentDate) {
+            this.showToast('Please calculate consumption first', 'error');
+            return;
+        }
+
+        const utilities = DataManager.getUtilities();
+        const lastReading = utilities.electricity.lastReading || 0;
+        const rate = utilities.electricity.rate || 8;
+        const usage = currentReading - lastReading;
+        const cost = usage * rate;
+
+        // Update utilities
+        utilities.electricity.lastReading = currentReading;
+        if (!utilities.electricity.readings) utilities.electricity.readings = [];
+        utilities.electricity.readings.unshift({
+            date: currentDate,
+            reading: currentReading,
+            usage: usage,
+            cost: cost,
+            timestamp: DateTime.now().toISO()
+        });
+        DataManager.saveUtilities(utilities);
+
+        // Add as expense transaction
+        TransactionsManager.add({
+            date: currentDate,
+            amount: cost,
+            type: 'expense',
+            category: 'Utilities',
+            description: `Electricity bill: ${usage.toFixed(2)} kWh`,
+            currency: 'THB',
+            paymentMethod: 'bank'
+        });
+
+        // Update UI
+        UtilitiesManager.updateUI();
+        document.getElementById('electricityCalcResult').style.display = 'none';
+        document.getElementById('electricityCurrentReading').value = '';
+
+        this.showToast('Electricity reading saved and added to expenses', 'success');
+    },
+
+    /**
+     * Save water reading
+     */
+    saveWaterReading() {
+        const currentReading = parseFloat(document.getElementById('waterCurrentReading')?.value);
+        const currentDate = document.getElementById('waterCurrentDate')?.value;
+
+        if (isNaN(currentReading) || !currentDate) {
+            this.showToast('Please calculate consumption first', 'error');
+            return;
+        }
+
+        const utilities = DataManager.getUtilities();
+        const lastReading = utilities.water.lastReading || 0;
+        const rate = utilities.water.rate || 20;
+        const usage = currentReading - lastReading;
+        const cost = usage * rate;
+
+        // Update utilities
+        utilities.water.lastReading = currentReading;
+        if (!utilities.water.readings) utilities.water.readings = [];
+        utilities.water.readings.unshift({
+            date: currentDate,
+            reading: currentReading,
+            usage: usage,
+            cost: cost,
+            timestamp: DateTime.now().toISO()
+        });
+        DataManager.saveUtilities(utilities);
+
+        // Add as expense transaction
+        TransactionsManager.add({
+            date: currentDate,
+            amount: cost,
+            type: 'expense',
+            category: 'Utilities',
+            description: `Water bill: ${usage.toFixed(2)} units`,
+            currency: 'THB',
+            paymentMethod: 'bank'
+        });
+
+        // Update UI
+        UtilitiesManager.updateUI();
+        document.getElementById('waterCalcResult').style.display = 'none';
+        document.getElementById('waterCurrentReading').value = '';
+
+        this.showToast('Water reading saved and added to expenses', 'success');
+    },
+
+    /**
+     * Show utility history
+     */
+    showUtilityHistory() {
+        const utilities = DataManager.getUtilities();
+        const elecReadings = utilities.electricity?.readings || [];
+        const waterReadings = utilities.water?.readings || [];
+
+        let historyHTML = `
+            <div class="utility-history-content">
+                <h4><i class="fas fa-lightbulb"></i> Electricity History</h4>
+                <div class="history-list">
+        `;
+
+        if (elecReadings.length === 0) {
+            historyHTML += '<p class="no-data">No electricity readings recorded</p>';
+        } else {
+            elecReadings.slice(0, 10).forEach(r => {
+                historyHTML += `
+                    <div class="history-item">
+                        <div class="history-date">${r.date}</div>
+                        <div class="history-details">
+                            <span>Reading: ${r.reading} kWh</span>
+                            <span>Usage: ${r.usage?.toFixed(2) || 0} kWh</span>
+                            <span>Cost: ฿${r.cost?.toFixed(2) || 0}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        historyHTML += `
+                </div>
+                <h4><i class="fas fa-tint"></i> Water History</h4>
+                <div class="history-list">
+        `;
+
+        if (waterReadings.length === 0) {
+            historyHTML += '<p class="no-data">No water readings recorded</p>';
+        } else {
+            waterReadings.slice(0, 10).forEach(r => {
+                historyHTML += `
+                    <div class="history-item">
+                        <div class="history-date">${r.date}</div>
+                        <div class="history-details">
+                            <span>Reading: ${r.reading} units</span>
+                            <span>Usage: ${r.usage?.toFixed(2) || 0} units</span>
+                            <span>Cost: ฿${r.cost?.toFixed(2) || 0}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        historyHTML += '</div></div>';
+
+        // Create and show modal
+        this.showCustomModal('Utility History', historyHTML);
+    },
+
+    /**
+     * Export utility data
+     */
+    exportUtilityData() {
+        const utilities = DataManager.getUtilities();
+        const elecReadings = utilities.electricity?.readings || [];
+        const waterReadings = utilities.water?.readings || [];
+
+        let csvContent = 'data:text/csv;charset=utf-8,';
+        csvContent += 'Type,Date,Reading,Usage,Cost (THB)\n';
+
+        elecReadings.forEach(r => {
+            csvContent += `Electricity,${r.date},${r.reading},${r.usage?.toFixed(2) || 0},${r.cost?.toFixed(2) || 0}\n`;
+        });
+
+        waterReadings.forEach(r => {
+            csvContent += `Water,${r.date},${r.reading},${r.usage?.toFixed(2) || 0},${r.cost?.toFixed(2) || 0}\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `utility_history_${DateTime.now().toISODate()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        this.showToast('Utility data exported', 'success');
+    },
+
+    /**
+     * Sync to Google Sheets
+     */
+    async syncToGoogleSheets() {
+        if (!GoogleAPIService.isAuthorized || !GoogleAPIService.isAuthorized()) {
+            this.showToast('Please connect to Google first', 'warning');
+            this.openModal('sheetsModal');
+            return;
+        }
+
+        this.showLoading();
+        try {
+            const result = await GoogleAPIService.exportAll();
+            if (result.success) {
+                this.showToast('Data synced to Google Sheets', 'success');
+                if (result.spreadsheetId) {
+                    window.open(`https://docs.google.com/spreadsheets/d/${result.spreadsheetId}`, '_blank');
+                }
+            } else {
+                this.showToast('Sync failed: ' + (result.error || 'Unknown error'), 'error');
+            }
+        } catch (error) {
+            console.error('Sync error:', error);
+            this.showToast('Failed to sync with Google Sheets', 'error');
+        }
+        this.hideLoading();
+    },
+
+    /**
+     * Show balance history
+     */
+    showBalanceHistory(type) {
+        const transactions = DataManager.getTransactions();
+        const filtered = transactions.filter(t => t.paymentMethod === type).slice(0, 20);
+
+        let historyHTML = `<div class="balance-history-content">`;
+
+        if (filtered.length === 0) {
+            historyHTML += '<p class="no-data">No transactions found for this account</p>';
+        } else {
+            historyHTML += '<div class="history-list">';
+            filtered.forEach(t => {
+                const amountClass = t.type === 'income' ? 'income' : t.type === 'expense' ? 'expense' : 'transfer';
+                const sign = t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '';
+                historyHTML += `
+                    <div class="history-item">
+                        <div class="history-date">${t.date}</div>
+                        <div class="history-description">${t.description || t.category}</div>
+                        <div class="history-amount ${amountClass}">${sign}฿${ExchangeRateService.formatNumber(t.amount)}</div>
+                    </div>
+                `;
+            });
+            historyHTML += '</div>';
+        }
+
+        historyHTML += '</div>';
+
+        const title = type === 'bank' ? 'Bank Account History' : 'Cash Wallet History';
+        this.showCustomModal(title, historyHTML);
+    },
+
+    /**
+     * Adjust balance
+     */
+    adjustBalance(type) {
+        const balances = DataManager.getBalances();
+        const currentValue = type === 'bank' ? (balances.bank || 0) : (balances.cash || 0);
+
+        const reason = prompt('Reason for adjustment (e.g., Bank reconciliation, Cash count):');
+        if (reason === null) return;
+
+        const newValue = prompt(`Enter new ${type} balance (THB):`, currentValue);
+        if (newValue === null || isNaN(parseFloat(newValue))) return;
+
+        const adjustment = parseFloat(newValue) - currentValue;
+
+        // Update balance
+        if (type === 'bank') {
+            balances.bank = parseFloat(newValue);
+        } else {
+            balances.cash = parseFloat(newValue);
+        }
+        balances.thb = (balances.bank || 0) + (balances.cash || 0);
+        DataManager.saveBalances(balances);
+
+        // Record adjustment as transaction
+        if (adjustment !== 0) {
+            TransactionsManager.add({
+                date: DateTime.now().toISODate(),
+                amount: Math.abs(adjustment),
+                type: adjustment > 0 ? 'income' : 'expense',
+                category: 'Balance Adjustment',
+                description: `${reason || 'Balance adjustment'} (${type})`,
+                currency: 'THB',
+                paymentMethod: type
+            });
+        }
+
+        this.updateBalanceDisplay();
+        this.showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} balance adjusted`, 'success');
+    },
+
+    /**
+     * Show custom modal with content
+     */
+    showCustomModal(title, content) {
+        // Remove existing custom modal if any
+        const existing = document.getElementById('customModal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'customModal';
+        modal.className = 'modal active';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>${title}</h3>
+                    <button class="modal-close" onclick="document.getElementById('customModal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    ${content}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    },
+
+    /**
+     * Reset all data and start over
+     */
+    resetAllData() {
+        if (!confirm('Are you sure you want to DELETE ALL DATA?\n\nThis will:\n- Delete all transactions\n- Delete all balances\n- Delete all settings\n- Reset the app to initial setup\n\nThis action CANNOT be undone!')) {
+            return;
+        }
+
+        if (!confirm('FINAL WARNING: All your financial data will be permanently deleted. Continue?')) {
+            return;
+        }
+
+        // Clear all storage
+        StorageService.clearAll();
+
+        // Show toast and reload
+        this.showToast('All data deleted. Restarting...', 'info');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+    },
+
+    /**
+     * Open budget configuration modal
+     */
+    openBudgetModal() {
+        const budget = DataManager.getBudget();
+        const transactions = DataManager.getTransactions();
+        const rate = ExchangeRateService.getRate();
+
+        // Calculate category spending
+        const now = DateTime.now();
+        const currentMonth = now.month;
+        const currentYear = now.year;
+
+        const categorySpending = {};
+        transactions.filter(t => {
+            if (t.type !== 'expense') return false;
+            const tDate = DateTime.fromISO(t.date);
+            return tDate.month === currentMonth && tDate.year === currentYear;
+        }).forEach(t => {
+            const cat = t.category || 'Other';
+            if (!categorySpending[cat]) categorySpending[cat] = 0;
+            categorySpending[cat] += parseFloat(t.amount) || 0;
+        });
+
+        const totalSpent = Object.values(categorySpending).reduce((a, b) => a + b, 0);
+        const monthlyBudget = budget.monthlyBudget || 50000;
+
+        let content = `
+            <form id="budgetConfigForm">
+                <div class="form-group">
+                    <label class="form-label">Annual Income (THB)</label>
+                    <div class="input-with-icon">
+                        <input type="number" class="form-control" id="budgetAnnualIncome" value="${budget.annualIncome || 600000}" step="1000">
+                        <span class="input-icon">฿</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monthly Budget (THB)</label>
+                    <div class="input-with-icon">
+                        <input type="number" class="form-control" id="budgetMonthlyBudget" value="${monthlyBudget}" step="100">
+                        <span class="input-icon">฿</span>
+                    </div>
+                </div>
+            </form>
+
+            <div class="section-divider"></div>
+
+            <h4><i class="fas fa-chart-pie"></i> Category Spending This Month</h4>
+            <div class="category-breakdown">
+        `;
+
+        if (Object.keys(categorySpending).length === 0) {
+            content += '<p class="no-data">No expenses recorded this month</p>';
+        } else {
+            // Sort by amount descending
+            const sortedCategories = Object.entries(categorySpending).sort((a, b) => b[1] - a[1]);
+
+            sortedCategories.forEach(([cat, amount]) => {
+                const percentage = monthlyBudget > 0 ? ((amount / monthlyBudget) * 100).toFixed(1) : 0;
+                const idrAmount = amount * rate;
+                content += `
+                    <div class="category-item">
+                        <div class="category-info">
+                            <span class="category-name">${cat}</span>
+                            <span class="category-percentage">${percentage}% of budget</span>
+                        </div>
+                        <div class="category-amounts">
+                            <span class="amount-thb">฿${ExchangeRateService.formatNumber(amount)}</span>
+                            <span class="amount-idr">≈ Rp ${ExchangeRateService.formatNumber(idrAmount)}</span>
+                        </div>
+                        <div class="category-bar">
+                            <div class="category-bar-fill" style="width: ${Math.min(percentage, 100)}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        content += `
+            </div>
+
+            <div class="section-divider"></div>
+
+            <div class="budget-summary-modal">
+                <div class="summary-item">
+                    <span>Total Spent</span>
+                    <span class="expense">฿${ExchangeRateService.formatNumber(totalSpent)}</span>
+                </div>
+                <div class="summary-item">
+                    <span>Remaining</span>
+                    <span class="${monthlyBudget - totalSpent >= 0 ? 'success' : 'danger'}">฿${ExchangeRateService.formatNumber(monthlyBudget - totalSpent)}</span>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-primary" onclick="App.saveBudgetConfig()">Save Settings</button>
+            </div>
+        `;
+
+        this.showCustomModal('<i class="fas fa-cog"></i> Budget Configuration', content);
+    },
+
+    /**
+     * Save budget configuration
+     */
+    saveBudgetConfig() {
+        const annualIncome = parseFloat(document.getElementById('budgetAnnualIncome')?.value) || 600000;
+        const monthlyBudget = parseFloat(document.getElementById('budgetMonthlyBudget')?.value) || 50000;
+
+        const budget = DataManager.getBudget();
+        budget.annualIncome = annualIncome;
+        budget.monthlyBudget = monthlyBudget;
+        DataManager.saveBudget(budget);
+
+        BudgetManager.init();
+
+        // Close modal
+        const modal = document.getElementById('customModal');
+        if (modal) modal.remove();
+
+        this.showToast('Budget settings saved', 'success');
+    },
+
+    /**
+     * Open investment configuration modal
+     */
+    openInvestmentModal() {
+        const investments = DataManager.getInvestments();
+        const budget = DataManager.getBudget();
+        const monthlyIncome = (budget.annualIncome || 600000) / 12;
+        const rate = ExchangeRateService.getRate();
+
+        const allocation = investments.allocation || 20;
+        const stockPercentage = investments.stockPercentage || 70;
+        const cryptoPercentage = investments.cryptoPercentage || 30;
+        const stockReturn = investments.stockReturn || 1.5;
+        const cryptoReturn = investments.cryptoReturn || 3.0;
+
+        const monthlyInvestment = (monthlyIncome * allocation) / 100;
+        const stockAmount = (monthlyInvestment * stockPercentage) / 100;
+        const cryptoAmount = (monthlyInvestment * cryptoPercentage) / 100;
+        const expectedMonthlyReturn = (stockAmount * stockReturn / 100) + (cryptoAmount * cryptoReturn / 100);
+        const expectedAnnualReturn = expectedMonthlyReturn * 12;
+
+        let content = `
+            <form id="investmentConfigForm">
+                <div class="form-group">
+                    <label class="form-label">Investment Allocation (% of income)</label>
+                    <div class="input-with-icon">
+                        <input type="number" class="form-control" id="investAllocation" value="${allocation}" min="0" max="100" step="1">
+                        <span class="input-icon">%</span>
+                    </div>
+                    <small class="form-hint">Monthly investment: ฿${ExchangeRateService.formatNumber(monthlyInvestment)}</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Stock Market (%)</label>
+                        <input type="number" class="form-control" id="investStockPercent" value="${stockPercentage}" min="0" max="100" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Crypto (%)</label>
+                        <input type="number" class="form-control" id="investCryptoPercent" value="${cryptoPercentage}" min="0" max="100" step="1">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Stock Expected Return (%/mo)</label>
+                        <input type="number" class="form-control" id="investStockReturn" value="${stockReturn}" min="0" max="100" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Crypto Expected Return (%/mo)</label>
+                        <input type="number" class="form-control" id="investCryptoReturn" value="${cryptoReturn}" min="0" max="100" step="0.1">
+                    </div>
+                </div>
+            </form>
+
+            <div class="section-divider"></div>
+
+            <h4><i class="fas fa-chart-line"></i> Investment Summary</h4>
+            <div class="investment-summary-modal">
+                <div class="summary-row">
+                    <span>Stock Market Investment</span>
+                    <span>฿${ExchangeRateService.formatNumber(stockAmount)}/mo</span>
+                </div>
+                <div class="summary-row">
+                    <span>Crypto Investment</span>
+                    <span>฿${ExchangeRateService.formatNumber(cryptoAmount)}/mo</span>
+                </div>
+                <div class="summary-row highlight">
+                    <span>Expected Monthly Return</span>
+                    <span class="success">+฿${ExchangeRateService.formatNumber(expectedMonthlyReturn)}</span>
+                </div>
+                <div class="summary-row highlight">
+                    <span>Expected Annual Return</span>
+                    <span class="success">+฿${ExchangeRateService.formatNumber(expectedAnnualReturn)}</span>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-primary" onclick="App.saveInvestmentConfig()">Save Settings</button>
+            </div>
+        `;
+
+        this.showCustomModal('<i class="fas fa-chart-line"></i> Investment Portfolio Settings', content);
+    },
+
+    /**
+     * Save investment configuration
+     */
+    saveInvestmentConfig() {
+        const allocation = parseFloat(document.getElementById('investAllocation')?.value) || 20;
+        const stockPercentage = parseFloat(document.getElementById('investStockPercent')?.value) || 70;
+        const cryptoPercentage = parseFloat(document.getElementById('investCryptoPercent')?.value) || 30;
+        const stockReturn = parseFloat(document.getElementById('investStockReturn')?.value) || 1.5;
+        const cryptoReturn = parseFloat(document.getElementById('investCryptoReturn')?.value) || 3.0;
+
+        const investments = {
+            allocation,
+            stockPercentage,
+            cryptoPercentage,
+            stockReturn,
+            cryptoReturn
+        };
+
+        DataManager.saveInvestments(investments);
+        InvestmentsManager.init();
+
+        // Close modal
+        const modal = document.getElementById('customModal');
+        if (modal) modal.remove();
+
+        this.showToast('Investment settings saved', 'success');
+    },
+
+    /**
+     * Open past reading modal for utilities
+     */
+    openPastReadingModal() {
+        const utilities = DataManager.getUtilities();
+
+        let content = `
+            <div class="past-reading-tabs">
+                <button class="past-reading-tab active" data-type="electricity" onclick="App.switchPastReadingTab('electricity')">
+                    <i class="fas fa-lightbulb"></i> Electricity
+                </button>
+                <button class="past-reading-tab" data-type="water" onclick="App.switchPastReadingTab('water')">
+                    <i class="fas fa-tint"></i> Water
+                </button>
+            </div>
+
+            <div id="electricityPastReading" class="past-reading-form">
+                <div class="form-group">
+                    <label class="form-label"><i class="far fa-calendar"></i> Reading Date</label>
+                    <input type="date" class="form-control" id="pastElecDate" value="${DateTime.now().toISODate()}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-tachometer-alt"></i> Meter Reading (kWh)</label>
+                    <input type="number" class="form-control" id="pastElecReading" placeholder="Enter meter reading" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-bolt"></i> Usage (kWh) - Optional</label>
+                    <input type="number" class="form-control" id="pastElecUsage" placeholder="Leave blank to auto-calculate" step="0.01">
+                    <div class="input-hint">If blank, usage will be calculated from last reading</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-money-bill"></i> Cost (THB) - Optional</label>
+                    <input type="number" class="form-control" id="pastElecCost" placeholder="Leave blank to auto-calculate" step="0.01">
+                    <div class="input-hint">Rate: ฿${utilities.electricity?.rate || 8}/kWh</div>
+                </div>
+            </div>
+
+            <div id="waterPastReading" class="past-reading-form" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label"><i class="far fa-calendar"></i> Reading Date</label>
+                    <input type="date" class="form-control" id="pastWaterDate" value="${DateTime.now().toISODate()}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-tachometer-alt"></i> Meter Reading (units)</label>
+                    <input type="number" class="form-control" id="pastWaterReading" placeholder="Enter meter reading" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-tint"></i> Usage (units) - Optional</label>
+                    <input type="number" class="form-control" id="pastWaterUsage" placeholder="Leave blank to auto-calculate" step="0.01">
+                    <div class="input-hint">If blank, usage will be calculated from last reading</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-money-bill"></i> Cost (THB) - Optional</label>
+                    <input type="number" class="form-control" id="pastWaterCost" placeholder="Leave blank to auto-calculate" step="0.01">
+                    <div class="input-hint">Rate: ฿${utilities.water?.rate || 20}/unit</div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-primary" onclick="App.savePastReading()">
+                    <i class="fas fa-save"></i> Save Reading
+                </button>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('customModal').remove()">
+                    Cancel
+                </button>
+            </div>
+        `;
+
+        this.showCustomModal('<i class="fas fa-plus-circle"></i> Add Past Reading', content);
+        this.currentPastReadingType = 'electricity';
+    },
+
+    /**
+     * Switch past reading tab
+     */
+    switchPastReadingTab(type) {
+        this.currentPastReadingType = type;
+
+        // Update tabs
+        document.querySelectorAll('.past-reading-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.type === type);
+        });
+
+        // Show/hide forms
+        document.getElementById('electricityPastReading').style.display = type === 'electricity' ? 'block' : 'none';
+        document.getElementById('waterPastReading').style.display = type === 'water' ? 'block' : 'none';
+    },
+
+    /**
+     * Save past reading
+     */
+    savePastReading() {
+        const type = this.currentPastReadingType || 'electricity';
+        const utilities = DataManager.getUtilities();
+
+        if (type === 'electricity') {
+            const date = document.getElementById('pastElecDate')?.value;
+            const reading = parseFloat(document.getElementById('pastElecReading')?.value);
+            let usage = parseFloat(document.getElementById('pastElecUsage')?.value);
+            let cost = parseFloat(document.getElementById('pastElecCost')?.value);
+
+            if (!date || isNaN(reading)) {
+                this.showToast('Please enter date and meter reading', 'error');
+                return;
+            }
+
+            // Auto-calculate usage if not provided
+            if (isNaN(usage)) {
+                const lastReading = utilities.electricity?.lastReading || 0;
+                usage = reading - lastReading;
+            }
+
+            // Auto-calculate cost if not provided
+            if (isNaN(cost)) {
+                const rate = utilities.electricity?.rate || 8;
+                cost = usage * rate;
+            }
+
+            // Add reading
+            if (!utilities.electricity.readings) utilities.electricity.readings = [];
+            utilities.electricity.readings.unshift({
+                date,
+                reading,
+                usage,
+                cost,
+                timestamp: DateTime.now().toISO()
+            });
+            utilities.electricity.lastReading = reading;
+            DataManager.saveUtilities(utilities);
+
+            // Add as expense transaction
+            TransactionsManager.add({
+                date,
+                amount: cost,
+                type: 'expense',
+                category: 'Utilities',
+                description: `Electricity (past): ${usage.toFixed(2)} kWh`,
+                currency: 'THB',
+                paymentMethod: 'bank'
+            });
+
+        } else {
+            const date = document.getElementById('pastWaterDate')?.value;
+            const reading = parseFloat(document.getElementById('pastWaterReading')?.value);
+            let usage = parseFloat(document.getElementById('pastWaterUsage')?.value);
+            let cost = parseFloat(document.getElementById('pastWaterCost')?.value);
+
+            if (!date || isNaN(reading)) {
+                this.showToast('Please enter date and meter reading', 'error');
+                return;
+            }
+
+            // Auto-calculate usage if not provided
+            if (isNaN(usage)) {
+                const lastReading = utilities.water?.lastReading || 0;
+                usage = reading - lastReading;
+            }
+
+            // Auto-calculate cost if not provided
+            if (isNaN(cost)) {
+                const rate = utilities.water?.rate || 20;
+                cost = usage * rate;
+            }
+
+            // Add reading
+            if (!utilities.water.readings) utilities.water.readings = [];
+            utilities.water.readings.unshift({
+                date,
+                reading,
+                usage,
+                cost,
+                timestamp: DateTime.now().toISO()
+            });
+            utilities.water.lastReading = reading;
+            DataManager.saveUtilities(utilities);
+
+            // Add as expense transaction
+            TransactionsManager.add({
+                date,
+                amount: cost,
+                type: 'expense',
+                category: 'Utilities',
+                description: `Water (past): ${usage.toFixed(2)} units`,
+                currency: 'THB',
+                paymentMethod: 'bank'
+            });
+        }
+
+        // Update UI
+        UtilitiesManager.updateUI();
+
+        // Close modal
+        const modal = document.getElementById('customModal');
+        if (modal) modal.remove();
+
+        this.showToast('Past reading saved successfully', 'success');
     },
 
     /**
