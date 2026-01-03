@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Advanced Personal Finance Management System with real-time exchange rates and utility monitoring">
+    <meta name="keywords" content="finance, budgeting, investment, utility tracking, THB, IDR">
+    <meta name="author" content="Hans Financial Note">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <title>Hans Financial Note | Advanced Personal Finance Management</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="images/favicon.png">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+
+    <!-- Manifest for PWA -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- External Libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+
+    <!-- Application CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- External Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+    <!-- Google API for Sheets and Drive -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
+</head>
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading Hans Financial Note...</p>
+        </div>
+    </div>
+
+    <!-- Setup Wizard (Initial Setup) -->
+    <div class="setup-wizard" id="setupWizard" style="display: none;">
+        <div class="wizard-progress">
+            <div class="wizard-progress-bar" id="wizardProgress" style="width: 25%"></div>
+        </div>
+
+        <div class="wizard-content">
+            <!-- Step 1: Welcome -->
+            <div class="wizard-step active" id="step1">
+                <div style="text-align: center; padding: 40px 20px;">
+                    <div class="logo-icon" style="margin: 0 auto 25px auto; width: 80px; height: 80px; font-size: 36px;">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <h2 style="font-size: 2.2rem; margin-bottom: 15px; color: var(--primary-blue);">
+                        Welcome to Hans Financial Note
+                    </h2>
+                    <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 30px; line-height: 1.6;">
+                        Your advanced personal finance management system with real-time exchange rates,
+                        cloud sync, Google Sheets integration, and comprehensive tracking.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 15px; max-width: 300px; margin: 0 auto;">
+                        <button class="btn btn-primary" id="startSetupBtn" style="padding: 15px 40px; font-size: 1.1rem;">
+                            <i class="fas fa-rocket"></i> Begin Setup
+                        </button>
+                        <button class="btn btn-outline" id="importDataBtn" style="padding: 12px 30px;">
+                            <i class="fas fa-file-import"></i> Import Existing Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Account Connection -->
+            <div class="wizard-step" id="step2">
+                <h3 style="color: var(--primary-blue); margin-bottom: 25px;">
+                    <i class="fas fa-cloud"></i> Cloud Account Setup
+                </h3>
+                <p style="margin-bottom: 25px; color: var(--text-secondary);">
+                    Connect your Google account to enable cloud sync, Google Sheets backup, and Google Drive storage for receipts.
+                </p>
+
+                <div class="cloud-connection-card" id="cloudConnectionCard">
+                    <div class="connection-status" id="wizardConnectionStatus">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span>Not Connected</span>
+                    </div>
+                    <button class="btn btn-primary" id="wizardGoogleSignInBtn" style="width: 100%;">
+                        <i class="fab fa-google"></i> Sign In with Google
+                    </button>
+                    <div class="connection-benefits">
+                        <div class="benefit-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Sync data across all devices</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Automatic backup to Google Sheets</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Store receipts in Google Drive</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="skip-connection" style="text-align: center; margin-top: 20px;">
+                    <button class="btn btn-outline btn-sm" id="skipCloudBtn">
+                        Skip for now (use local storage only)
+                    </button>
+                </div>
+
+                <div class="wizard-nav">
+                    <button class="btn btn-outline" id="prevStep2Btn">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" id="nextStep2Btn">
+                        Continue <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Initial Balances -->
+            <div class="wizard-step" id="step3">
+                <h3 style="color: var(--primary-blue); margin-bottom: 25px;">
+                    <i class="fas fa-wallet"></i> Initial Balances Setup
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label" for="initialBankBalance">
+                        <i class="fas fa-university"></i>
+                        Initial Bank Balance (THB)
+                    </label>
+                    <div class="input-with-icon">
+                        <input type="number" class="form-control" id="initialBankBalance" placeholder="25000" step="0.01" value="0">
+                        <span class="input-icon">฿</span>
+                    </div>
+                    <div class="input-hint" id="bankBalanceIDRHint">≈ Rp 0</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="initialCashBalance">
+                        <i class="fas fa-money-bill"></i>
+                        Initial Cash Balance (THB)
+                    </label>
+                    <div class="input-with-icon">
+                        <input type="number" class="form-control" id="initialCashBalance" placeholder="5000" step="0.01" value="0">
+                        <span class="input-icon">฿</span>
+                    </div>
+                    <div class="input-hint" id="cashBalanceIDRHint">≈ Rp 0</div>
+                </div>
+
+                <div class="wizard-nav">
+                    <button class="btn btn-outline" id="prevStep3Btn">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" id="nextStep3Btn">
+                        Continue <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Categories Setup -->
+            <div class="wizard-step" id="step4">
+                <h3 style="color: var(--primary-blue); margin-bottom: 25px;">
+                    <i class="fas fa-tags"></i> Categories Setup
+                </h3>
+
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                    Customize your income and expense categories:
+                </p>
+
+                <div class="category-tabs">
+                    <button class="category-tab active" data-type="income">
+                        <i class="fas fa-arrow-up"></i> Income
+                    </button>
+                    <button class="category-tab" data-type="expense">
+                        <i class="fas fa-arrow-down"></i> Expense
+                    </button>
+                    <button class="category-tab" data-type="transfer">
+                        <i class="fas fa-exchange-alt"></i> Transfer
+                    </button>
+                </div>
+
+                <div id="initialCategoriesContainer" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; background: var(--light-gray); padding: 15px; border-radius: var(--radius-md);">
+                    <!-- Categories will be loaded here -->
+                </div>
+
+                <div class="form-group">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" class="form-control" id="newCategoryInput" placeholder="New category name" style="flex: 1;">
+                        <button type="button" class="btn btn-gold" id="addInitialCategoryBtn">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                </div>
+
+                <div class="wizard-nav">
+                    <button class="btn btn-outline" id="prevStep4Btn">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" id="nextStep4Btn">
+                        Continue <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 5: Utilities Setup -->
+            <div class="wizard-step" id="step5">
+                <h3 style="color: var(--primary-blue); margin-bottom: 25px;">
+                    <i class="fas fa-bolt"></i> Utilities Setup
+                </h3>
+
+                <p style="margin-bottom: 25px; color: var(--text-secondary);">
+                    Set up your utility monitoring system (optional):
+                </p>
+
+                <div class="form-group">
+                    <label class="form-label" for="initialElectricityReading">
+                        <i class="fas fa-lightbulb"></i>
+                        Initial Electricity Reading (kWh)
+                    </label>
+                    <input type="number" class="form-control" id="initialElectricityReading" placeholder="0" step="0.01" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="electricityRateSetup">
+                        <i class="fas fa-tag"></i>
+                        Electricity Rate (THB/kWh)
+                    </label>
+                    <input type="number" class="form-control" id="electricityRateSetup" placeholder="8" step="0.01" value="8">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="initialWaterReading">
+                        <i class="fas fa-tint"></i>
+                        Initial Water Reading (units)
+                    </label>
+                    <input type="number" class="form-control" id="initialWaterReading" placeholder="0" step="0.01" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="waterRateSetup">
+                        <i class="fas fa-tag"></i>
+                        Water Rate (THB/unit)
+                    </label>
+                    <input type="number" class="form-control" id="waterRateSetup" placeholder="20" step="0.01" value="20">
+                </div>
+
+                <div class="wizard-nav">
+                    <button class="btn btn-outline" id="prevStep5Btn">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-success" id="finishSetupBtn" style="padding: 12px 30px;">
+                        <i class="fas fa-check"></i> Complete Setup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="container" id="mainApp" style="display: none;">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>Hans Financial Note</h1>
+                        <div class="subtitle">
+                            <span id="currentDateTime">Loading...</span>
+                            <span class="badge" id="appStatusBadge">
+                                <i class="fas fa-circle"></i> <span>Loading</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Balance</span>
+                        <span class="stat-value" id="totalBalanceTHB">฿ 0.00</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Exchange Rate</span>
+                        <span class="stat-value" id="headerExchangeRate">1 THB = 460 IDR</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Monthly Budget</span>
+                        <span class="stat-value" id="headerMonthlyBudget">฿ 0.00</span>
+                    </div>
+                    <div class="stat-item header-actions">
+                        <button class="btn btn-sm btn-outline" id="headerSettingsBtn" title="Settings">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline" id="headerHelpBtn" title="Help">
+                            <i class="fas fa-question-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Cloud Sync Bar -->
+        <div class="cloud-sync-bar not-connected" id="cloudSyncBar">
+            <div class="sync-status">
+                <i class="fas fa-cloud" id="syncIcon"></i>
+                <div>
+                    <strong id="syncAccountName">Not Connected</strong>
+                    <div class="sync-status-text" id="syncStatusText">Sign in to sync data across devices</div>
+                </div>
+            </div>
+            <div class="sync-actions">
+                <button class="btn" id="cloudSignInBtn">
+                    <i class="fab fa-google"></i> Sign In with Google
+                </button>
+            </div>
+        </div>
+
+        <!-- NEW TRANSACTION - Main Highlight Section -->
+        <div class="transaction-highlight" id="newTransactionSection">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <div class="card-text">
+                        <h3>New Transaction</h3>
+                        <div class="card-subtitle" id="transactionSyncStatus">
+                            <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                            <span>Quick entry for income & expenses</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-buttons">
+                    <button class="btn btn-sm btn-outline" id="voiceInputBtn" title="Voice Input">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline" id="quickAddBtn">
+                        <i class="fas fa-bolt"></i> Quick Add
+                    </button>
+                </div>
+            </div>
+
+            <form id="transactionForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="txDate">
+                            <i class="far fa-calendar"></i> Date
+                        </label>
+                        <input type="date" class="form-control" id="txDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="txAmount">
+                            <i class="fas fa-money-bill"></i> Amount (THB)
+                        </label>
+                        <div class="input-with-icon">
+                            <input type="number" class="form-control" id="txAmount" placeholder="0.00" required step="0.01" inputmode="decimal">
+                            <span class="input-icon">฿</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="txType">
+                            <i class="fas fa-exchange-alt"></i> Type
+                        </label>
+                        <select class="form-control" id="txType" required>
+                            <option value="">Select Type</option>
+                            <option value="income">💰 Income</option>
+                            <option value="expense">💸 Expense</option>
+                            <option value="transfer">🔄 Transfer</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="txDescription">
+                            <i class="fas fa-file-invoice-dollar"></i> Description
+                        </label>
+                        <input type="text" class="form-control" id="txDescription" placeholder="Salary, Groceries, Rent..." required list="descriptionSuggestions" autocomplete="off">
+                        <datalist id="descriptionSuggestions"></datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="txCategory">
+                            <i class="fas fa-tag"></i> Category
+                        </label>
+                        <div class="input-with-button">
+                            <select class="form-control" id="txCategory" required>
+                                <option value="">Select Category</option>
+                            </select>
+                            <button type="button" class="btn btn-gold btn-sm" id="addCategoryBtn" title="Add new category">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="txPaymentMethod">
+                            <i class="fas fa-credit-card"></i> Payment Method
+                        </label>
+                        <select class="form-control" id="txPaymentMethod" required>
+                            <option value="">Select Method</option>
+                            <option value="bank">🏦 Bank Transfer</option>
+                            <option value="cash">💵 Cash</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="txNotes">
+                        <i class="far fa-sticky-note"></i> Additional Notes (Optional)
+                    </label>
+                    <textarea class="form-control" id="txNotes" rows="2" placeholder="Any additional details..."></textarea>
+                </div>
+
+                <!-- Image Upload Section -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-camera"></i> Receipt/Proof (Optional)
+                    </label>
+                    <div class="image-upload-section" id="imageUploadArea">
+                        <input type="file" id="txReceiptImage" accept="image/*" capture="environment" style="display: none;">
+                        <div id="imageUploadPlaceholder">
+                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                            <div class="upload-text">Tap to upload or take photo</div>
+                            <div class="upload-hint">Supports JPG, PNG (auto-saves to Google Drive)</div>
+                        </div>
+                        <div id="imagePreviewContainer" style="display: none;">
+                            <img id="receiptPreview" class="image-preview" alt="Receipt preview">
+                            <button type="button" class="btn btn-sm btn-danger" id="removeImageBtn">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" id="idrCalculation" style="display: none;">
+                    <div class="calculation-result compact">
+                        <div class="calc-item">
+                            <span class="calc-label">IDR Equivalent</span>
+                            <span class="calc-value" id="idrEquivalent">Rp 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-submit">
+                        <i class="fas fa-save"></i> Save Transaction
+                    </button>
+                    <button type="button" class="btn btn-outline" id="resetFormBtn">
+                        <i class="fas fa-redo"></i> Reset
+                    </button>
+                    <button type="button" class="btn btn-outline" id="recurringBtn">
+                        <i class="fas fa-sync"></i> Recurring
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Exchange Rate Banner -->
+        <div class="exchange-banner" id="exchangeBanner">
+            <div class="exchange-content">
+                <div class="rate-info">
+                    <div class="rate-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="rate-display">
+                        <span class="rate-value" id="currentRate">460.00</span>
+                        <span class="rate-currency">IDR/THB</span>
+                    </div>
+                    <div class="rate-details">
+                        <div class="rate-source">
+                            <i class="fas fa-database"></i>
+                            <span id="rateSource">ExchangeRate-API</span>
+                        </div>
+                        <div class="rate-update">
+                            <i class="far fa-clock"></i>
+                            <span id="rateUpdateTime">Just now</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rate-controls">
+                    <button class="btn btn-outline btn-sm" id="manualRateBtn">
+                        <i class="fas fa-edit"></i> Manual
+                    </button>
+                    <button class="btn btn-sm" id="refreshRateBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Balance Cards -->
+        <div class="balance-container">
+            <!-- Bank Account Card -->
+            <div class="balance-card bank">
+                <div class="balance-header">
+                    <div class="balance-title">
+                        <div class="balance-icon">
+                            <i class="fas fa-university"></i>
+                        </div>
+                        <div class="balance-text">
+                            <h3>Bank Account</h3>
+                            <div class="balance-status" id="bankStatus">
+                                <i class="fas fa-circle"></i>
+                                <span>Active</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline edit-btn" id="editBankBalanceBtn">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+
+                <div class="balance-amount">
+                    <div class="balance-thb" id="bankBalanceTHB">
+                        <span class="currency">฿</span>
+                        <span class="value" id="bankBalanceValue">0.00</span>
+                    </div>
+                    <div class="balance-idr" id="bankBalanceIDR">
+                        ≈ Rp <span id="bankBalanceIDRValue">0</span>
+                    </div>
+                </div>
+
+                <div class="balance-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Exchange Rate</span>
+                        <span class="detail-value" id="bankExchangeRate">460 IDR/THB</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Last Transaction</span>
+                        <span class="detail-value" id="bankLastTx">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Last Updated</span>
+                        <span class="detail-value" id="bankLastUpdated">-</span>
+                    </div>
+                </div>
+
+                <div class="balance-actions">
+                    <button class="btn btn-sm btn-outline" id="bankHistoryBtn">
+                        <i class="fas fa-history"></i> History
+                    </button>
+                    <button class="btn btn-sm btn-outline" id="bankAdjustBtn">
+                        <i class="fas fa-adjust"></i> Adjust
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cash Wallet Card -->
+            <div class="balance-card cash">
+                <div class="balance-header">
+                    <div class="balance-title">
+                        <div class="balance-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="balance-text">
+                            <h3>Cash Wallet</h3>
+                            <div class="balance-status" id="cashStatus">
+                                <i class="fas fa-circle"></i>
+                                <span>Active</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline edit-btn" id="editCashBalanceBtn">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+
+                <div class="balance-amount">
+                    <div class="balance-thb" id="cashBalanceTHB">
+                        <span class="currency">฿</span>
+                        <span class="value" id="cashBalanceValue">0.00</span>
+                    </div>
+                    <div class="balance-idr" id="cashBalanceIDR">
+                        ≈ Rp <span id="cashBalanceIDRValue">0</span>
+                    </div>
+                </div>
+
+                <div class="balance-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Exchange Rate</span>
+                        <span class="detail-value" id="cashExchangeRate">460 IDR/THB</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Last Transaction</span>
+                        <span class="detail-value" id="cashLastTx">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Last Updated</span>
+                        <span class="detail-value" id="cashLastUpdated">-</span>
+                    </div>
+                </div>
+
+                <div class="balance-actions">
+                    <button class="btn btn-sm btn-outline" id="cashHistoryBtn">
+                        <i class="fas fa-history"></i> History
+                    </button>
+                    <button class="btn btn-sm btn-outline" id="cashAdjustBtn">
+                        <i class="fas fa-adjust"></i> Adjust
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid: Budget and Investment -->
+        <div class="main-grid">
+            <!-- Budget Overview Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-icon">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="card-text">
+                            <h3>Budget Overview</h3>
+                            <div class="card-subtitle">
+                                <i class="far fa-calendar-alt"></i>
+                                <span id="budgetMonth">This Month</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline" id="editBudgetBtn">
+                        <i class="fas fa-cog"></i> Configure
+                    </button>
+                </div>
+
+                <div class="budget-summary">
+                    <div class="budget-item">
+                        <div class="budget-label">Monthly Budget</div>
+                        <div class="budget-value" id="monthlyBudgetTHB">฿ 0.00</div>
+                    </div>
+                    <div class="budget-item">
+                        <div class="budget-label">Spent This Month</div>
+                        <div class="budget-value danger" id="monthlySpentTHB">฿ 0.00</div>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <span>Budget Usage</span>
+                        <span id="budgetUsagePercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-good" id="budgetProgressBar" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-footer">
+                        <span id="budgetStatusText">Within Budget</span>
+                    </div>
+                </div>
+
+                <div class="budget-remaining">
+                    <div class="remaining-label">Remaining Budget</div>
+                    <div class="remaining-value" id="monthlyRemainingTHB">฿ 0.00</div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="budgetChart"></canvas>
+                </div>
+
+                <div id="categoryBudgetBreakdown" style="display: none;">
+                    <div class="section-title">
+                        <i class="fas fa-list-alt"></i> Category Breakdown
+                    </div>
+                    <div id="categoryBudgetList"></div>
+                </div>
+            </div>
+
+            <!-- Investment Dashboard Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="card-text">
+                            <h3>Investment Portfolio</h3>
+                            <div class="card-subtitle">
+                                <i class="fas fa-percentage"></i>
+                                <span>Monthly Projections</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline" id="editInvestmentsBtn">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                </div>
+
+                <div class="investment-allocation">
+                    <div class="allocation-item stock">
+                        <div class="allocation-header">Stock Market</div>
+                        <div class="allocation-amount" id="stockAmountTHB">฿ 0.00</div>
+                        <div class="allocation-meta">
+                            <span id="stockPercentage">70%</span> • Target: <span id="stockTargetReturn">1.5</span>%/mo
+                        </div>
+                    </div>
+
+                    <div class="allocation-item crypto">
+                        <div class="allocation-header">Cryptocurrency</div>
+                        <div class="allocation-amount" id="cryptoAmountTHB">฿ 0.00</div>
+                        <div class="allocation-meta">
+                            <span id="cryptoPercentage">30%</span> • Target: <span id="cryptoTargetReturn">3.0</span>%/mo
+                        </div>
+                    </div>
+                </div>
+
+                <div class="projected-returns">
+                    <div class="returns-title">Projected Returns</div>
+                    <div class="returns-row">
+                        <span>Monthly Return</span>
+                        <span class="returns-value success" id="totalProfitTHB">฿ 0.00</span>
+                    </div>
+                    <div class="returns-row">
+                        <span>Annual Projection</span>
+                        <span class="returns-value" id="annualProfitTHB">฿ 0.00</span>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="investmentChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Utility Tracking Section -->
+        <div class="utility-section">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="card-text">
+                        <h3>Utility Tracking</h3>
+                        <div class="card-subtitle">
+                            <i class="far fa-clock"></i>
+                            <span>Last Updated: <span id="utilityLastUpdated">-</span></span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline" id="utilitySettingsBtn">
+                    <i class="fas fa-cog"></i> Settings
+                </button>
+            </div>
+
+            <div class="utility-grid">
+                <!-- Electricity Card -->
+                <div class="utility-card electricity">
+                    <div class="utility-header">
+                        <div class="utility-title">
+                            <div class="utility-icon">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div class="utility-text">
+                                <h4>Electricity</h4>
+                                <div class="utility-rate">
+                                    Rate: <span id="electricityRateDisplay">8</span> THB/kWh
+                                </div>
+                            </div>
+                        </div>
+                        <div class="utility-last-update">
+                            <i class="far fa-calendar"></i>
+                            <span id="electricityLastUpdate">-</span>
+                        </div>
+                    </div>
+
+                    <div class="reading-grid">
+                        <div class="reading-card">
+                            <div class="reading-label">
+                                <i class="fas fa-history"></i> Last Reading
+                            </div>
+                            <div class="reading-value" id="electricityLastReading">0 kWh</div>
+                            <div class="reading-date" id="electricityLastDate">Date: -</div>
+                        </div>
+
+                        <div class="reading-card current">
+                            <div class="reading-label">
+                                <i class="fas fa-edit"></i> Current Reading
+                            </div>
+                            <input type="number" class="current-reading-input" id="electricityCurrentReading" placeholder="Enter reading" step="0.01" inputmode="decimal">
+                            <input type="date" class="reading-date-input" id="electricityCurrentDate">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary btn-block" id="calculateElectricityBtn">
+                        <i class="fas fa-calculator"></i> Calculate Consumption
+                    </button>
+
+                    <div class="calculation-result" id="electricityCalcResult" style="display: none;">
+                        <div class="calc-grid">
+                            <div class="calc-item">
+                                <div class="calc-label">Total Consumption</div>
+                                <div class="calc-value" id="electricityTotal">0 kWh</div>
+                            </div>
+                            <div class="calc-item">
+                                <div class="calc-label">Days Between</div>
+                                <div class="calc-value" id="electricityDays">0 days</div>
+                            </div>
+                            <div class="calc-item">
+                                <div class="calc-label">Daily Average</div>
+                                <div class="calc-value" id="electricityAverage">0 kWh/day</div>
+                            </div>
+                            <div class="calc-item">
+                                <div class="calc-label">Total Cost</div>
+                                <div class="calc-value" id="electricityCostTHB">฿ 0.00</div>
+                            </div>
+                        </div>
+
+                        <div class="warning-alert" id="electricityWarning" style="display: none;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div>
+                                <div class="alert-title">High Consumption Alert</div>
+                                <div class="alert-text">Daily average exceeds threshold of <span id="electricityThreshold">3</span> kWh/day</div>
+                            </div>
+                        </div>
+
+                        <div class="calc-actions">
+                            <button class="btn btn-success" id="saveElectricityBtn">
+                                <i class="fas fa-save"></i> Save Reading
+                            </button>
+                            <button class="btn btn-outline" id="cancelElectricityBtn">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Water Card -->
+                <div class="utility-card water">
+                    <div class="utility-header">
+                        <div class="utility-title">
+                            <div class="utility-icon">
+                                <i class="fas fa-tint"></i>
+                            </div>
+                            <div class="utility-text">
+                                <h4>Water</h4>
+                                <div class="utility-rate">
+                                    Rate: <span id="waterRateDisplay">20</span> THB/unit
+                                </div>
+                            </div>
+                        </div>
+                        <div class="utility-last-update">
+                            <i class="far fa-calendar"></i>
+                            <span id="waterLastUpdate">-</span>
+                        </div>
+                    </div>
+
+                    <div class="reading-grid">
+                        <div class="reading-card">
+                            <div class="reading-label">
+                                <i class="fas fa-history"></i> Last Reading
+                            </div>
+                            <div class="reading-value" id="waterLastReading">0 units</div>
+                            <div class="reading-date" id="waterLastDate">Date: -</div>
+                        </div>
+
+                        <div class="reading-card current">
+                            <div class="reading-label">
+                                <i class="fas fa-edit"></i> Current Reading
+                            </div>
+                            <input type="number" class="current-reading-input" id="waterCurrentReading" placeholder="Enter reading" step="0.01" inputmode="decimal">
+                            <input type="date" class="reading-date-input" id="waterCurrentDate">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary btn-block" id="calculateWaterBtn">
+                        <i class="fas fa-calculator"></i> Calculate Consumption
+                    </button>
+
+                    <div class="calculation-result" id="waterCalcResult" style="display: none;">
+                        <div class="calc-grid">
+                            <div class="calc-item">
+                                <div class="calc-label">Total Consumption</div>
+                                <div class="calc-value" id="waterTotal">0 units</div>
+                            </div>
+                            <div class="calc-item">
+                                <div class="calc-label">Days Between</div>
+                                <div class="calc-value" id="waterDays">0 days</div>
+                            </div>
+                            <div class="calc-item">
+                                <div class="calc-label">Daily Average</div>
+                                <div class="calc-value" id="waterAverage">0 units/day</div>
+                            </div>
+                            <div class="calc-item">
+                                <div class="calc-label">Total Cost</div>
+                                <div class="calc-value" id="waterCostTHB">฿ 0.00</div>
+                            </div>
+                        </div>
+
+                        <div class="calc-actions">
+                            <button class="btn btn-success" id="saveWaterBtn">
+                                <i class="fas fa-save"></i> Save Reading
+                            </button>
+                            <button class="btn btn-outline" id="cancelWaterBtn">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="utility-actions">
+                <button class="btn btn-outline" id="addPastReadingBtn">
+                    <i class="fas fa-plus-circle"></i> Add Past Reading
+                </button>
+                <button class="btn btn-outline" id="utilityHistoryBtn">
+                    <i class="fas fa-history"></i> View History
+                </button>
+                <button class="btn btn-outline" id="utilityExportBtn">
+                    <i class="fas fa-download"></i> Export Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Transactions History -->
+        <div class="transactions-section">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div class="card-text">
+                        <h3>Transaction History</h3>
+                        <div class="card-subtitle" id="transactionStats">
+                            Total: <span id="totalTransactions">0</span> transactions
+                        </div>
+                    </div>
+                </div>
+                <div class="header-buttons">
+                    <button class="btn btn-sm btn-danger" id="bulkDeleteBtn" style="display: none;">
+                        <i class="fas fa-trash"></i> Delete Selected
+                    </button>
+                    <button class="btn btn-sm btn-outline" id="syncToSheetsBtn" title="Sync to Google Sheets">
+                        <i class="fas fa-file-excel"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline" id="exportBtn">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-filters">
+                <div class="filter-buttons">
+                    <button class="btn btn-sm active" data-filter="all">All</button>
+                    <button class="btn btn-sm" data-filter="income">Income</button>
+                    <button class="btn btn-sm" data-filter="expense">Expenses</button>
+                    <button class="btn btn-sm" data-filter="transfer">Transfers</button>
+                </div>
+                <div class="filter-inputs">
+                    <select class="form-control" id="categoryFilter">
+                        <option value="">All Categories</option>
+                    </select>
+                    <input type="date" class="form-control" id="startDateFilter" placeholder="From">
+                    <input type="date" class="form-control" id="endDateFilter" placeholder="To">
+                    <button class="btn btn-sm btn-primary" id="applyFiltersBtn">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline" id="clearFiltersBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-col">
+                                <input type="checkbox" id="selectAllCheckbox">
+                            </th>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount (THB)</th>
+                            <th>Amount (IDR)</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Payment</th>
+                            <th class="actions-col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsBody">
+                        <tr id="emptyStateRow">
+                            <td colspan="9" class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <h3>No transactions yet</h3>
+                                <p>Start by adding your first transaction</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer">
+                <div class="table-info">
+                    Showing <span id="shownCount">0</span> of <span id="totalCount">0</span> transactions
+                </div>
+                <div class="table-pagination">
+                    <button class="btn btn-sm btn-outline" id="prevPageBtn" disabled>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <span class="page-info">Page <span id="currentPage">1</span></span>
+                    <button class="btn btn-sm btn-outline" id="nextPageBtn" disabled>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; <span id="currentYear">2024</span> Hans Financial Note | Advanced Personal Finance Management System</p>
+            <div class="footer-links">
+                <button class="btn btn-sm btn-outline" id="settingsBtn">
+                    <i class="fas fa-cog"></i> Settings
+                </button>
+                <button class="btn btn-sm btn-outline" id="backupBtn">
+                    <i class="fas fa-database"></i> Backup
+                </button>
+                <button class="btn btn-sm btn-outline" id="restoreBtn">
+                    <i class="fas fa-undo"></i> Restore
+                </button>
+                <button class="btn btn-sm btn-outline" id="helpBtn">
+                    <i class="fas fa-question-circle"></i> Help
+                </button>
+            </div>
+            <div class="version-info">
+                Version 3.0.0 | <span id="lastSyncTime">-</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Include all modals -->
+    <div id="modalsContainer"></div>
+
+    <!-- Application Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/firebase-service.js"></script>
+    <script src="js/google-api.js"></script>
+    <script src="js/exchange-rate.js"></script>
+    <script src="js/utilities.js"></script>
+    <script src="js/transactions.js"></script>
+    <script src="js/budget.js"></script>
+    <script src="js/investments.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/modals.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

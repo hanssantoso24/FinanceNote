@@ -1,0 +1,108 @@
+{
+    "name": "Hans Financial Note",
+    "short_name": "FinanceNote",
+    "description": "Personal finance management with dual-currency support (THB/IDR), budget tracking, and investment projections",
+    "version": "3.0.0",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#4a90d9",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "icons": [
+        {
+            "src": "images/icon-72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "images/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["finance", "productivity", "utilities"],
+    "lang": "en",
+    "dir": "ltr",
+    "prefer_related_applications": false,
+    "shortcuts": [
+        {
+            "name": "Add Transaction",
+            "short_name": "Add",
+            "description": "Add a new transaction",
+            "url": "/?action=add",
+            "icons": [
+                {
+                    "src": "images/shortcut-add.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "View Budget",
+            "short_name": "Budget",
+            "description": "View budget status",
+            "url": "/?section=budget",
+            "icons": [
+                {
+                    "src": "images/shortcut-budget.png",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "images/screenshot-wide.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "Desktop view of Hans Financial Note"
+        },
+        {
+            "src": "images/screenshot-narrow.png",
+            "sizes": "750x1334",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Mobile view of Hans Financial Note"
+        }
+    ]
+}
