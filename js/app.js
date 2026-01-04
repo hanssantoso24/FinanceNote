@@ -2578,7 +2578,7 @@ const App = {
                 </button>
             </div>
 
-            <div id="electricityPastReading" class="past-reading-form">
+            <div id="modalElectricityPastReadingForm" class="past-reading-form">
                 <div class="form-group">
                     <label class="form-label"><i class="far fa-calendar"></i> Reading Date</label>
                     <input type="date" class="form-control" id="pastElecDate" value="${DateTime.now().toISODate()}">
@@ -2599,7 +2599,7 @@ const App = {
                 </div>
             </div>
 
-            <div id="waterPastReading" class="past-reading-form" style="display: none;">
+            <div id="modalWaterPastReadingForm" class="past-reading-form" style="display: none;">
                 <div class="form-group">
                     <label class="form-label"><i class="far fa-calendar"></i> Reading Date</label>
                     <input type="date" class="form-control" id="pastWaterDate" value="${DateTime.now().toISODate()}">
@@ -2645,9 +2645,9 @@ const App = {
             tab.classList.toggle('active', tab.dataset.type === type);
         });
 
-        // Show/hide forms
-        document.getElementById('electricityPastReading').style.display = type === 'electricity' ? 'block' : 'none';
-        document.getElementById('waterPastReading').style.display = type === 'water' ? 'block' : 'none';
+        // Show/hide forms (using unique modal IDs to avoid conflict with main page)
+        document.getElementById('modalElectricityPastReadingForm').style.display = type === 'electricity' ? 'block' : 'none';
+        document.getElementById('modalWaterPastReadingForm').style.display = type === 'water' ? 'block' : 'none';
     },
 
     /**

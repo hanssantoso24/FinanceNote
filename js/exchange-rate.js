@@ -250,14 +250,15 @@ const ExchangeRateService = {
     },
 
     /**
-     * Fetch from ExchangeRate.Host (free, no API key required)
+     * Fetch from ExchangeRate.Host (with API key for real-time rates)
      */
     async fetchFromExchangeRateHost() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const apiKey = '3c4c0d724abede5dc04f95375cdee2df';
 
         try {
-            const response = await fetch('https://api.exchangerate.host/latest?base=THB&symbols=IDR', {
+            const response = await fetch(`https://api.exchangerate.host/live?access_key=${apiKey}&source=THB&currencies=IDR`, {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -265,7 +266,8 @@ const ExchangeRateService = {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
-            const rate = data.rates?.IDR;
+            // API returns quotes like {"THBIDR": 460.xx}
+            const rate = data.quotes?.THBIDR || data.rates?.IDR;
 
             if (!rate || isNaN(rate) || rate <= 0) {
                 throw new Error('Invalid rate data');
