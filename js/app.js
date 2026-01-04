@@ -257,14 +257,18 @@ const App = {
             });
         }
 
-        // Refresh rate button
+        // Refresh rate button - uses forceRefresh for immediate update
         const refreshRateBtn = document.getElementById('refreshRateBtn');
         if (refreshRateBtn) {
             refreshRateBtn.addEventListener('click', async () => {
                 refreshRateBtn.disabled = true;
-                await ExchangeRateService.fetchRate();
+                const result = await ExchangeRateService.forceRefresh();
                 refreshRateBtn.disabled = false;
-                this.showToast('Exchange rate refreshed', 'success');
+                if (result.success) {
+                    this.showToast(`Exchange rate updated: ${ExchangeRateService.formatNumber(result.rate)} IDR/THB`, 'success');
+                } else {
+                    this.showToast('Failed to fetch exchange rate. Using cached rate.', 'warning');
+                }
             });
         }
 

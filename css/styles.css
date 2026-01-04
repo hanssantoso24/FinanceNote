@@ -748,10 +748,82 @@ textarea.form-control {
     opacity: 0.9;
 }
 
-.rate-source, .rate-update {
+.rate-source, .rate-update, .rate-countdown {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+/* Live Indicator */
+.live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: rgba(34, 197, 94, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+.live-indicator i {
+    font-size: 0.5rem;
+    color: #22c55e;
+    animation: pulse-live 2s infinite;
+}
+
+.live-indicator.updating i {
+    animation: pulse-updating 0.5s infinite;
+    color: #facc15;
+}
+
+@keyframes pulse-live {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+@keyframes pulse-updating {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+/* Rate Change Indicator */
+.rate-change {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+}
+
+.rate-change.up {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.rate-change.down {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.rate-change.stable {
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Rate Countdown */
+.rate-countdown {
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.75rem;
+}
+
+.rate-countdown i {
+    font-size: 0.7rem;
 }
 
 .rate-controls {
@@ -2090,6 +2162,34 @@ input:checked + .toggle-slider:before {
 
     .rate-controls {
         justify-content: center;
+    }
+
+    .rate-display {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .rate-change {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+
+    .rate-details {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px 15px;
+    }
+
+    .live-indicator {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+
+    .rate-icon {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     .balance-container {

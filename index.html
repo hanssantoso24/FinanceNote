@@ -483,10 +483,16 @@
                 <div class="rate-info">
                     <div class="rate-icon">
                         <i class="fas fa-money-bill-wave"></i>
+                        <span class="live-indicator" id="rateLiveIndicator" title="Live rate">
+                            <i class="fas fa-circle"></i> LIVE
+                        </span>
                     </div>
                     <div class="rate-display">
-                        <span class="rate-value" id="currentRate">460.00</span>
+                        <span class="rate-value" id="exchangeRate">460.00</span>
                         <span class="rate-currency">IDR/THB</span>
+                        <span class="rate-change stable" id="rateChangeIndicator">
+                            <i class="fas fa-minus"></i> 0.00%
+                        </span>
                     </div>
                     <div class="rate-details">
                         <div class="rate-source">
@@ -495,7 +501,12 @@
                         </div>
                         <div class="rate-update">
                             <i class="far fa-clock"></i>
-                            <span id="rateUpdateTime">Just now</span>
+                            <span id="rateLastUpdate">Just now</span>
+                        </div>
+                        <div class="rate-countdown">
+                            <i class="fas fa-hourglass-half"></i>
+                            <span>Next: </span>
+                            <span id="rateRefreshCountdown">5:00</span>
                         </div>
                     </div>
                 </div>
