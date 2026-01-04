@@ -219,6 +219,12 @@ const App = {
             });
         }
 
+        // Add category button
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        if (addCategoryBtn) {
+            addCategoryBtn.addEventListener('click', () => this.addNewCategory());
+        }
+
         // Filter buttons
         document.querySelectorAll('.filter-buttons .btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -891,17 +897,64 @@ const App = {
                               document.getElementById('editCategory');
         if (!categorySelect) return;
 
+        // If type is empty or invalid, show placeholder
+        if (!type || (type !== 'income' && type !== 'expense' && type !== 'transfer')) {
+            categorySelect.innerHTML = '<option value="">Select type first</option>';
+            return;
+        }
+
         const categories = DataManager.getCategories();
         const options = categories[type] || [];
 
         if (options.length === 0) {
-            categorySelect.innerHTML = '<option value="">No categories available</option>';
+            categorySelect.innerHTML = '<option value="">No categories - click + to add</option>';
             return;
         }
 
-        categorySelect.innerHTML = options.map(cat =>
-            `<option value="${cat}">${cat}</option>`
-        ).join('');
+        // Always include placeholder option first
+        categorySelect.innerHTML = '<option value="">Select Category</option>' +
+            options.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+    },
+
+    /**
+     * Add new category from the transaction form
+     */
+    addNewCategory() {
+        const typeSelect = document.getElementById('txType');
+        const type = typeSelect?.value;
+
+        if (!type || (type !== 'income' && type !== 'expense' && type !== 'transfer')) {
+            this.showToast('Please select a transaction type first', 'warning');
+            return;
+        }
+
+        const categoryName = prompt(`Enter new ${type} category name:`);
+        if (!categoryName || categoryName.trim() === '') {
+            return;
+        }
+
+        const trimmedName = categoryName.trim();
+        const categories = DataManager.getCategories();
+
+        // Check if category already exists
+        if (categories[type] && categories[type].includes(trimmedName)) {
+            this.showToast('Category already exists', 'warning');
+            return;
+        }
+
+        // Add the category
+        if (!categories[type]) categories[type] = [];
+        categories[type].push(trimmedName);
+        DataManager.saveCategories(categories);
+
+        // Update the dropdown and select the new category
+        this.updateCategories(type);
+        const categorySelect = document.getElementById('txCategory');
+        if (categorySelect) {
+            categorySelect.value = trimmedName;
+        }
+
+        this.showToast(`Category "${trimmedName}" added`, 'success');
     },
 
     /**
@@ -913,7 +966,9 @@ const App = {
         const txCategory = document.getElementById('txCategory');
 
         if (txType && txCategory) {
-            const type = txType.value || 'expense';
+            // If type is already selected, load categories for that type
+            // Otherwise show "Select type first" message
+            const type = txType.value;
             this.updateCategories(type);
         }
 
@@ -1209,6 +1264,7 @@ const App = {
      * Handle user sign in
      */
     onUserSignedIn(user) {
+        // Update settings page elements
         const notSignedIn = document.getElementById('notSignedIn');
         const signedIn = document.getElementById('signedIn');
         const userName = document.getElementById('userName');
@@ -1221,19 +1277,118 @@ const App = {
         if (userEmail) userEmail.textContent = user.email;
         if (userAvatar) userAvatar.src = user.photoURL || 'images/default-avatar.png';
 
+        // Update wizard connection status (Step 2)
+        const wizardConnectionStatus = document.getElementById('wizardConnectionStatus');
+        const wizardGoogleSignInBtn = document.getElementById('wizardGoogleSignInBtn');
+        const cloudConnectionCard = document.getElementById('cloudConnectionCard');
+
+        if (wizardConnectionStatus) {
+            wizardConnectionStatus.innerHTML = `
+                <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                <span style="color: var(--success);">Connected as ${user.displayName || user.email}</span>
+            `;
+            wizardConnectionStatus.classList.add('connected');
+        }
+        if (wizardGoogleSignInBtn) {
+            wizardGoogleSignInBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
+            wizardGoogleSignInBtn.disabled = true;
+            wizardGoogleSignInBtn.classList.add('btn-success');
+            wizardGoogleSignInBtn.classList.remove('btn-primary');
+        }
+        if (cloudConnectionCard) {
+            cloudConnectionCard.classList.add('connected');
+        }
+
+        // Update main display cloud sync bar
+        const cloudSyncBar = document.getElementById('cloudSyncBar');
+        const syncAccountName = document.getElementById('syncAccountName');
+        const syncStatusText = document.getElementById('syncStatusText');
+        const syncIcon = document.getElementById('syncIcon');
+        const cloudSignInBtn = document.getElementById('cloudSignInBtn');
+
+        if (cloudSyncBar) {
+            cloudSyncBar.classList.remove('not-connected');
+            cloudSyncBar.classList.add('connected');
+        }
+        if (syncAccountName) {
+            syncAccountName.textContent = user.displayName || user.email;
+        }
+        if (syncStatusText) {
+            syncStatusText.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success);"></i> Data synced to Google Drive`;
+        }
+        if (syncIcon) {
+            syncIcon.classList.remove('fa-cloud');
+            syncIcon.classList.add('fa-cloud-check');
+            syncIcon.style.color = 'var(--success)';
+        }
+        if (cloudSignInBtn) {
+            cloudSignInBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Now';
+            cloudSignInBtn.onclick = () => this.syncToCloud();
+        }
+
         this.updateSyncStatus();
-        this.showToast('Signed in successfully', 'success');
+        this.showToast('Signed in successfully - Data will sync to Google Drive', 'success');
     },
 
     /**
      * Handle user sign out
      */
     onUserSignedOut() {
+        // Update settings page elements
         const notSignedIn = document.getElementById('notSignedIn');
         const signedIn = document.getElementById('signedIn');
 
         if (notSignedIn) notSignedIn.style.display = 'block';
         if (signedIn) signedIn.style.display = 'none';
+
+        // Reset wizard connection status
+        const wizardConnectionStatus = document.getElementById('wizardConnectionStatus');
+        const wizardGoogleSignInBtn = document.getElementById('wizardGoogleSignInBtn');
+        const cloudConnectionCard = document.getElementById('cloudConnectionCard');
+
+        if (wizardConnectionStatus) {
+            wizardConnectionStatus.innerHTML = `
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>Not Connected</span>
+            `;
+            wizardConnectionStatus.classList.remove('connected');
+        }
+        if (wizardGoogleSignInBtn) {
+            wizardGoogleSignInBtn.innerHTML = '<i class="fab fa-google"></i> Sign In with Google';
+            wizardGoogleSignInBtn.disabled = false;
+            wizardGoogleSignInBtn.classList.remove('btn-success');
+            wizardGoogleSignInBtn.classList.add('btn-primary');
+        }
+        if (cloudConnectionCard) {
+            cloudConnectionCard.classList.remove('connected');
+        }
+
+        // Reset main display cloud sync bar
+        const cloudSyncBar = document.getElementById('cloudSyncBar');
+        const syncAccountName = document.getElementById('syncAccountName');
+        const syncStatusText = document.getElementById('syncStatusText');
+        const syncIcon = document.getElementById('syncIcon');
+        const cloudSignInBtn = document.getElementById('cloudSignInBtn');
+
+        if (cloudSyncBar) {
+            cloudSyncBar.classList.add('not-connected');
+            cloudSyncBar.classList.remove('connected');
+        }
+        if (syncAccountName) {
+            syncAccountName.textContent = 'Not Connected';
+        }
+        if (syncStatusText) {
+            syncStatusText.textContent = 'Sign in to sync data across devices';
+        }
+        if (syncIcon) {
+            syncIcon.classList.add('fa-cloud');
+            syncIcon.classList.remove('fa-cloud-check');
+            syncIcon.style.color = '';
+        }
+        if (cloudSignInBtn) {
+            cloudSignInBtn.innerHTML = '<i class="fab fa-google"></i> Sign In with Google';
+            cloudSignInBtn.onclick = () => this.signInWithGoogle();
+        }
 
         this.showToast('Signed out', 'info');
     },
@@ -1408,18 +1563,22 @@ const App = {
      * Update electricity display with current reading info
      */
     updateElectricityDisplay(electricity) {
-        // Update last reading display
+        // Update last reading display - matches HTML element IDs
         const lastReadingEl = document.getElementById('electricityLastReading');
-        const lastReadingDateEl = document.getElementById('electricityLastReadingDate');
+        const lastDateEl = document.getElementById('electricityLastDate');
+        const lastUpdateEl = document.getElementById('electricityLastUpdate');
 
         if (lastReadingEl) {
             lastReadingEl.textContent = `${electricity.lastReading?.toFixed(2) || '0.00'} kWh`;
         }
-        if (lastReadingDateEl) {
-            lastReadingDateEl.textContent = electricity.lastReadingDate || '-';
+        if (lastDateEl) {
+            lastDateEl.textContent = `Date: ${electricity.lastReadingDate || '-'}`;
+        }
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = electricity.lastReadingDate || '-';
         }
 
-        // Update usage and cost display
+        // Update usage and cost display (if elements exist)
         const usageEl = document.getElementById('electricityUsage');
         const costEl = document.getElementById('electricityCost');
         if (usageEl) {
@@ -1427,6 +1586,12 @@ const App = {
         }
         if (costEl) {
             costEl.textContent = `฿${electricity.lastCost?.toFixed(2) || '0.00'}`;
+        }
+
+        // Update rate display
+        const rateEl = document.getElementById('electricityRateDisplay');
+        if (rateEl && electricity.rate) {
+            rateEl.textContent = electricity.rate;
         }
     },
 
@@ -1480,18 +1645,22 @@ const App = {
      * Update water display with current reading info
      */
     updateWaterDisplay(water) {
-        // Update last reading display
+        // Update last reading display - matches HTML element IDs
         const lastReadingEl = document.getElementById('waterLastReading');
-        const lastReadingDateEl = document.getElementById('waterLastReadingDate');
+        const lastDateEl = document.getElementById('waterLastDate');
+        const lastUpdateEl = document.getElementById('waterLastUpdate');
 
         if (lastReadingEl) {
             lastReadingEl.textContent = `${water.lastReading?.toFixed(2) || '0.00'} units`;
         }
-        if (lastReadingDateEl) {
-            lastReadingDateEl.textContent = water.lastReadingDate || '-';
+        if (lastDateEl) {
+            lastDateEl.textContent = `Date: ${water.lastReadingDate || '-'}`;
+        }
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = water.lastReadingDate || '-';
         }
 
-        // Update usage and cost display
+        // Update usage and cost display (if elements exist)
         const usageEl = document.getElementById('waterUsage');
         const costEl = document.getElementById('waterCost');
         if (usageEl) {
@@ -1499,6 +1668,12 @@ const App = {
         }
         if (costEl) {
             costEl.textContent = `฿${water.lastCost?.toFixed(2) || '0.00'}`;
+        }
+
+        // Update rate display
+        const rateEl = document.getElementById('waterRateDisplay');
+        if (rateEl && water.rate) {
+            rateEl.textContent = water.rate;
         }
     },
 
@@ -1962,7 +2137,8 @@ const App = {
     openInvestmentModal() {
         const investments = DataManager.getInvestments();
         const budget = DataManager.getBudget();
-        const monthlyIncome = (budget.annualIncome || 600000) / 12;
+        const annualIncome = budget.annualIncome || 600000;
+        const monthlyIncome = annualIncome / 12;
         const rate = ExchangeRateService.getRate();
 
         const allocation = investments.allocation || 20;
@@ -1971,65 +2147,124 @@ const App = {
         const stockReturn = investments.stockReturn || 1.5;
         const cryptoReturn = investments.cryptoReturn || 3.0;
 
-        const monthlyInvestment = (monthlyIncome * allocation) / 100;
-        const stockAmount = (monthlyInvestment * stockPercentage) / 100;
-        const cryptoAmount = (monthlyInvestment * cryptoPercentage) / 100;
+        // Get manual investment amounts if set
+        const stockManualAmount = investments.stockManualAmount || 0;
+        const cryptoManualAmount = investments.cryptoManualAmount || 0;
+        const totalManualInvestment = stockManualAmount + cryptoManualAmount;
+
+        // Calculate percentage of annual income
+        const totalInvestmentVsAnnual = totalManualInvestment > 0
+            ? ((totalManualInvestment * 12) / annualIncome * 100).toFixed(1)
+            : (allocation).toFixed(1);
+
+        const monthlyInvestment = totalManualInvestment > 0
+            ? totalManualInvestment
+            : (monthlyIncome * allocation) / 100;
+        const stockAmount = totalManualInvestment > 0
+            ? stockManualAmount
+            : (monthlyInvestment * stockPercentage) / 100;
+        const cryptoAmount = totalManualInvestment > 0
+            ? cryptoManualAmount
+            : (monthlyInvestment * cryptoPercentage) / 100;
         const expectedMonthlyReturn = (stockAmount * stockReturn / 100) + (cryptoAmount * cryptoReturn / 100);
         const expectedAnnualReturn = expectedMonthlyReturn * 12;
 
         let content = `
             <form id="investmentConfigForm">
+                <div class="info-box" style="background: linear-gradient(135deg, rgba(30, 64, 175, 0.1), rgba(59, 130, 246, 0.1)); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fas fa-info-circle"></i> Annual Income</span>
+                        <strong>฿${ExchangeRateService.formatNumber(annualIncome)}</strong>
+                    </div>
+                </div>
+
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-hand-holding-usd"></i> Manual Investment Amount</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Enter your actual investment amounts (THB per month):</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-chart-bar"></i> Stock Market (THB/mo)</label>
+                        <div class="input-with-icon">
+                            <input type="number" class="form-control" id="investStockAmount" value="${stockManualAmount}" min="0" step="100" placeholder="0" onchange="App.updateInvestmentSummary()">
+                            <span class="input-icon">฿</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="fab fa-bitcoin"></i> Crypto (THB/mo)</label>
+                        <div class="input-with-icon">
+                            <input type="number" class="form-control" id="investCryptoAmount" value="${cryptoManualAmount}" min="0" step="100" placeholder="0" onchange="App.updateInvestmentSummary()">
+                            <span class="input-icon">฿</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-divider" style="margin: 20px 0;"></div>
+
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-percentage"></i> OR Use Percentage of Income</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Set investment as percentage (will be ignored if manual amounts are set):</p>
+
                 <div class="form-group">
-                    <label class="form-label">Investment Allocation (% of income)</label>
+                    <label class="form-label">Investment Allocation (% of monthly income)</label>
                     <div class="input-with-icon">
-                        <input type="number" class="form-control" id="investAllocation" value="${allocation}" min="0" max="100" step="1">
+                        <input type="number" class="form-control" id="investAllocation" value="${allocation}" min="0" max="100" step="1" onchange="App.updateInvestmentSummary()">
                         <span class="input-icon">%</span>
                     </div>
-                    <small class="form-hint">Monthly investment: ฿${ExchangeRateService.formatNumber(monthlyInvestment)}</small>
+                    <small class="form-hint">If manual amounts above are 0, this will be used</small>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Stock Market (%)</label>
+                        <label class="form-label">Stock Split (%)</label>
                         <input type="number" class="form-control" id="investStockPercent" value="${stockPercentage}" min="0" max="100" step="1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Crypto (%)</label>
+                        <label class="form-label">Crypto Split (%)</label>
                         <input type="number" class="form-control" id="investCryptoPercent" value="${cryptoPercentage}" min="0" max="100" step="1">
                     </div>
                 </div>
 
+                <div class="section-divider" style="margin: 20px 0;"></div>
+
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-chart-line"></i> Expected Returns</h4>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Stock Expected Return (%/mo)</label>
-                        <input type="number" class="form-control" id="investStockReturn" value="${stockReturn}" min="0" max="100" step="0.1">
+                        <input type="number" class="form-control" id="investStockReturn" value="${stockReturn}" min="0" max="100" step="0.1" onchange="App.updateInvestmentSummary()">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Crypto Expected Return (%/mo)</label>
-                        <input type="number" class="form-control" id="investCryptoReturn" value="${cryptoReturn}" min="0" max="100" step="0.1">
+                        <input type="number" class="form-control" id="investCryptoReturn" value="${cryptoReturn}" min="0" max="100" step="0.1" onchange="App.updateInvestmentSummary()">
                     </div>
                 </div>
             </form>
 
-            <div class="section-divider"></div>
+            <div class="section-divider" style="margin: 20px 0;"></div>
 
-            <h4><i class="fas fa-chart-line"></i> Investment Summary</h4>
-            <div class="investment-summary-modal">
+            <h4><i class="fas fa-chart-pie"></i> Investment Summary</h4>
+            <div class="investment-summary-modal" id="investmentSummaryDisplay">
+                <div class="summary-row">
+                    <span>Total Monthly Investment</span>
+                    <span id="summaryTotalInvestment">฿${ExchangeRateService.formatNumber(monthlyInvestment)}/mo</span>
+                </div>
+                <div class="summary-row highlight" style="background: linear-gradient(135deg, rgba(30, 64, 175, 0.1), rgba(59, 130, 246, 0.1));">
+                    <span><strong>% of Annual Income</strong></span>
+                    <span id="summaryPercentOfIncome" style="color: var(--primary-blue); font-weight: bold;">${totalInvestmentVsAnnual}%</span>
+                </div>
                 <div class="summary-row">
                     <span>Stock Market Investment</span>
-                    <span>฿${ExchangeRateService.formatNumber(stockAmount)}/mo</span>
+                    <span id="summaryStockAmount">฿${ExchangeRateService.formatNumber(stockAmount)}/mo</span>
                 </div>
                 <div class="summary-row">
                     <span>Crypto Investment</span>
-                    <span>฿${ExchangeRateService.formatNumber(cryptoAmount)}/mo</span>
+                    <span id="summaryCryptoAmount">฿${ExchangeRateService.formatNumber(cryptoAmount)}/mo</span>
                 </div>
                 <div class="summary-row highlight">
                     <span>Expected Monthly Return</span>
-                    <span class="success">+฿${ExchangeRateService.formatNumber(expectedMonthlyReturn)}</span>
+                    <span id="summaryMonthlyReturn" class="success">+฿${ExchangeRateService.formatNumber(expectedMonthlyReturn)}</span>
                 </div>
                 <div class="summary-row highlight">
                     <span>Expected Annual Return</span>
-                    <span class="success">+฿${ExchangeRateService.formatNumber(expectedAnnualReturn)}</span>
+                    <span id="summaryAnnualReturn" class="success">+฿${ExchangeRateService.formatNumber(expectedAnnualReturn)}</span>
                 </div>
             </div>
 
@@ -2042,6 +2277,58 @@ const App = {
     },
 
     /**
+     * Update investment summary in real-time
+     */
+    updateInvestmentSummary() {
+        const budget = DataManager.getBudget();
+        const annualIncome = budget.annualIncome || 600000;
+        const monthlyIncome = annualIncome / 12;
+
+        // Get values from form
+        const stockManualAmount = parseFloat(document.getElementById('investStockAmount')?.value) || 0;
+        const cryptoManualAmount = parseFloat(document.getElementById('investCryptoAmount')?.value) || 0;
+        const allocation = parseFloat(document.getElementById('investAllocation')?.value) || 0;
+        const stockPercentage = parseFloat(document.getElementById('investStockPercent')?.value) || 70;
+        const cryptoPercentage = parseFloat(document.getElementById('investCryptoPercent')?.value) || 30;
+        const stockReturn = parseFloat(document.getElementById('investStockReturn')?.value) || 0;
+        const cryptoReturn = parseFloat(document.getElementById('investCryptoReturn')?.value) || 0;
+
+        // Calculate based on manual or percentage
+        const totalManualInvestment = stockManualAmount + cryptoManualAmount;
+        const monthlyInvestment = totalManualInvestment > 0
+            ? totalManualInvestment
+            : (monthlyIncome * allocation) / 100;
+        const stockAmount = totalManualInvestment > 0
+            ? stockManualAmount
+            : (monthlyInvestment * stockPercentage) / 100;
+        const cryptoAmount = totalManualInvestment > 0
+            ? cryptoManualAmount
+            : (monthlyInvestment * cryptoPercentage) / 100;
+
+        // Calculate percentage of annual income
+        const totalInvestmentVsAnnual = ((monthlyInvestment * 12) / annualIncome * 100).toFixed(1);
+
+        // Calculate returns
+        const expectedMonthlyReturn = (stockAmount * stockReturn / 100) + (cryptoAmount * cryptoReturn / 100);
+        const expectedAnnualReturn = expectedMonthlyReturn * 12;
+
+        // Update display
+        const summaryTotalInvestment = document.getElementById('summaryTotalInvestment');
+        const summaryPercentOfIncome = document.getElementById('summaryPercentOfIncome');
+        const summaryStockAmount = document.getElementById('summaryStockAmount');
+        const summaryCryptoAmount = document.getElementById('summaryCryptoAmount');
+        const summaryMonthlyReturn = document.getElementById('summaryMonthlyReturn');
+        const summaryAnnualReturn = document.getElementById('summaryAnnualReturn');
+
+        if (summaryTotalInvestment) summaryTotalInvestment.textContent = `฿${ExchangeRateService.formatNumber(monthlyInvestment)}/mo`;
+        if (summaryPercentOfIncome) summaryPercentOfIncome.textContent = `${totalInvestmentVsAnnual}%`;
+        if (summaryStockAmount) summaryStockAmount.textContent = `฿${ExchangeRateService.formatNumber(stockAmount)}/mo`;
+        if (summaryCryptoAmount) summaryCryptoAmount.textContent = `฿${ExchangeRateService.formatNumber(cryptoAmount)}/mo`;
+        if (summaryMonthlyReturn) summaryMonthlyReturn.textContent = `+฿${ExchangeRateService.formatNumber(expectedMonthlyReturn)}`;
+        if (summaryAnnualReturn) summaryAnnualReturn.textContent = `+฿${ExchangeRateService.formatNumber(expectedAnnualReturn)}`;
+    },
+
+    /**
      * Save investment configuration
      */
     saveInvestmentConfig() {
@@ -2050,13 +2337,17 @@ const App = {
         const cryptoPercentage = parseFloat(document.getElementById('investCryptoPercent')?.value) || 30;
         const stockReturn = parseFloat(document.getElementById('investStockReturn')?.value) || 1.5;
         const cryptoReturn = parseFloat(document.getElementById('investCryptoReturn')?.value) || 3.0;
+        const stockManualAmount = parseFloat(document.getElementById('investStockAmount')?.value) || 0;
+        const cryptoManualAmount = parseFloat(document.getElementById('investCryptoAmount')?.value) || 0;
 
         const investments = {
             allocation,
             stockPercentage,
             cryptoPercentage,
             stockReturn,
-            cryptoReturn
+            cryptoReturn,
+            stockManualAmount,
+            cryptoManualAmount
         };
 
         DataManager.saveInvestments(investments);

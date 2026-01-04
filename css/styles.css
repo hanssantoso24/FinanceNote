@@ -369,6 +369,14 @@ body {
     background: var(--gradient-gold);
 }
 
+.cloud-sync-bar.connected {
+    background: var(--gradient-success);
+}
+
+.cloud-sync-bar.connected .sync-status i {
+    color: white;
+}
+
 .sync-status {
     display: flex;
     align-items: center;
@@ -1761,6 +1769,12 @@ textarea.form-control {
     border-radius: var(--radius-lg);
     padding: 25px;
     text-align: center;
+    transition: all var(--transition-normal);
+}
+
+.cloud-connection-card.connected {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+    border: 2px solid var(--success);
 }
 
 .connection-status {
