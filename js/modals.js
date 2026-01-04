@@ -83,6 +83,7 @@ const ModalsManager = {
                         <div class="settings-tabs">
                             <button class="tab-btn active" data-tab="general">General</button>
                             <button class="tab-btn" data-tab="categories">Categories</button>
+                            <button class="tab-btn" data-tab="budget">Budget</button>
                             <button class="tab-btn" data-tab="backup">Backup</button>
                             <button class="tab-btn" data-tab="about">About</button>
                         </div>
@@ -123,6 +124,31 @@ const ModalsManager = {
                                         <input type="text" id="newExpenseCategory" placeholder="New category">
                                         <button class="btn btn-small" onclick="ModalsManager.addCategory('expense')">Add</button>
                                     </div>
+                                </div>
+                                <div class="category-type">
+                                    <h5>Transfer Categories</h5>
+                                    <ul id="transferCategoriesList"></ul>
+                                    <div class="add-category">
+                                        <input type="text" id="newTransferCategory" placeholder="New category">
+                                        <button class="btn btn-small" onclick="ModalsManager.addCategory('transfer')">Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-budget">
+                            <h4>Budget Per Category</h4>
+                            <p class="settings-hint">Set monthly budget limits for each expense category.</p>
+                            <div class="budget-manager">
+                                <div class="budget-total-section">
+                                    <label for="totalMonthlyBudget">Total Monthly Budget (THB)</label>
+                                    <div class="budget-input-group">
+                                        <input type="number" id="totalMonthlyBudget" placeholder="Enter total budget" step="1" min="0">
+                                        <button class="btn btn-primary" onclick="ModalsManager.saveTotalBudget()">Save</button>
+                                    </div>
+                                </div>
+                                <div class="budget-categories-list" id="budgetCategoriesList">
+                                    <!-- Budget categories will be dynamically populated -->
                                 </div>
                             </div>
                         </div>
@@ -394,6 +420,8 @@ const ModalsManager = {
         // Load tab-specific data
         if (tabName === 'categories') {
             this.loadCategories();
+        } else if (tabName === 'budget') {
+            this.loadBudgetCategories();
         } else if (tabName === 'about') {
             this.loadStorageInfo();
         }
@@ -420,6 +448,7 @@ const ModalsManager = {
 
         const incomeList = document.getElementById('incomeCategoriesList');
         const expenseList = document.getElementById('expenseCategoriesList');
+        const transferList = document.getElementById('transferCategoriesList');
 
         if (incomeList) {
             incomeList.innerHTML = categories.income.map(cat => `
@@ -438,6 +467,135 @@ const ModalsManager = {
                 </li>
             `).join('');
         }
+
+        if (transferList) {
+            transferList.innerHTML = (categories.transfer || []).map(cat => `
+                <li>
+                    ${cat}
+                    <button class="btn btn-small btn-danger" onclick="ModalsManager.removeCategory('transfer', '${cat}')">×</button>
+                </li>
+            `).join('');
+        }
+    },
+
+    /**
+     * Load budget per category into modal
+     */
+    loadBudgetCategories() {
+        const categories = DataManager.getCategories();
+        const budget = DataManager.getBudget();
+        const categoryBudgets = budget.categoryBudgets || {};
+
+        const budgetList = document.getElementById('budgetCategoriesList');
+        const totalBudgetInput = document.getElementById('totalMonthlyBudget');
+
+        if (totalBudgetInput) {
+            totalBudgetInput.value = budget.monthlyBudget || '';
+        }
+
+        if (budgetList) {
+            // Get current month spending per category
+            const categoryStats = TransactionsManager.getCategoryStats('expense', 'month');
+
+            budgetList.innerHTML = categories.expense.map(cat => {
+                const budgetAmount = categoryBudgets[cat] || 0;
+                const spent = categoryStats[cat] ? categoryStats[cat].total : 0;
+                const remaining = budgetAmount - spent;
+                const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+                const statusClass = percentage >= 100 ? 'danger' : percentage >= 80 ? 'warning' : 'success';
+
+                return `
+                    <div class="budget-category-item">
+                        <div class="budget-category-header">
+                            <span class="budget-category-name">${cat}</span>
+                            <span class="budget-category-status ${statusClass}">
+                                ${budgetAmount > 0 ? `${Math.round(percentage)}% used` : 'No budget set'}
+                            </span>
+                        </div>
+                        <div class="budget-category-input">
+                            <input type="number"
+                                   id="budget_${cat.replace(/\s+/g, '_')}"
+                                   value="${budgetAmount || ''}"
+                                   placeholder="Enter budget"
+                                   min="0" step="1"
+                                   data-category="${cat}">
+                            <span class="budget-currency">THB</span>
+                        </div>
+                        ${budgetAmount > 0 ? `
+                            <div class="budget-category-progress">
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar progress-${statusClass}" style="width: ${Math.min(percentage, 100)}%"></div>
+                                </div>
+                                <div class="budget-category-stats">
+                                    <span>Spent: ฿${ExchangeRateService.formatNumber(spent)}</span>
+                                    <span class="${remaining >= 0 ? 'text-success' : 'text-danger'}">
+                                        ${remaining >= 0 ? 'Remaining' : 'Over'}: ฿${ExchangeRateService.formatNumber(Math.abs(remaining))}
+                                    </span>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // Add save button at the bottom
+            budgetList.innerHTML += `
+                <div class="budget-save-actions">
+                    <button class="btn btn-primary btn-block" onclick="ModalsManager.saveCategoryBudgets()">
+                        <i class="fas fa-save"></i> Save All Category Budgets
+                    </button>
+                </div>
+            `;
+        }
+    },
+
+    /**
+     * Save total monthly budget
+     */
+    saveTotalBudget() {
+        const totalBudgetInput = document.getElementById('totalMonthlyBudget');
+        if (!totalBudgetInput) return;
+
+        const budget = DataManager.getBudget();
+        budget.monthlyBudget = parseFloat(totalBudgetInput.value) || 0;
+        DataManager.saveBudget(budget);
+
+        // Update budget manager UI
+        BudgetManager.init();
+
+        App.showToast('Total budget saved', 'success');
+    },
+
+    /**
+     * Save all category budgets
+     */
+    saveCategoryBudgets() {
+        const categories = DataManager.getCategories();
+        const budget = DataManager.getBudget();
+        budget.categoryBudgets = budget.categoryBudgets || {};
+
+        // Collect all budget inputs
+        categories.expense.forEach(cat => {
+            const input = document.getElementById(`budget_${cat.replace(/\s+/g, '_')}`);
+            if (input) {
+                const value = parseFloat(input.value) || 0;
+                if (value > 0) {
+                    budget.categoryBudgets[cat] = value;
+                } else {
+                    delete budget.categoryBudgets[cat];
+                }
+            }
+        });
+
+        DataManager.saveBudget(budget);
+
+        // Reload the budget categories to show updated stats
+        this.loadBudgetCategories();
+
+        // Update budget manager UI
+        BudgetManager.init();
+
+        App.showToast('Category budgets saved', 'success');
     },
 
     /**

@@ -182,7 +182,8 @@ const DataManager = {
     getBudget() {
         return StorageService.load(CONFIG.storageKeys.budget, {
             annualIncome: CONFIG.budget.defaultAnnualIncome,
-            monthlyBudget: CONFIG.budget.defaultMonthlyBudget
+            monthlyBudget: CONFIG.budget.defaultMonthlyBudget,
+            categoryBudgets: {}
         });
     },
 

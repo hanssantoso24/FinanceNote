@@ -149,61 +149,68 @@ const TransactionsManager = {
      */
     updateBalanceDisplay() {
         const balances = DataManager.getBalances();
+        const rate = ExchangeRateService.getRate();
 
-        // Bank balance
-        const bankBalanceThb = document.getElementById('bankBalanceThb');
-        const bankBalanceIdr = document.getElementById('bankBalanceIdr');
-        if (bankBalanceThb) {
-            bankBalanceThb.textContent = ExchangeRateService.format(balances.bank || 0, 'THB');
+        // Bank balance - match HTML element IDs
+        const bankBalanceValue = document.getElementById('bankBalanceValue');
+        const bankBalanceIDRValue = document.getElementById('bankBalanceIDRValue');
+        if (bankBalanceValue) {
+            bankBalanceValue.textContent = ExchangeRateService.formatNumber(balances.bank || 0);
         }
-        if (bankBalanceIdr) {
-            const bankIdr = ExchangeRateService.thbToIdr(balances.bank || 0);
-            bankBalanceIdr.textContent = `≈ ${ExchangeRateService.format(bankIdr, 'IDR')}`;
-        }
-
-        // Cash balance
-        const cashBalanceThb = document.getElementById('cashBalanceThb');
-        const cashBalanceIdr = document.getElementById('cashBalanceIdr');
-        if (cashBalanceThb) {
-            cashBalanceThb.textContent = ExchangeRateService.format(balances.cash || 0, 'THB');
-        }
-        if (cashBalanceIdr) {
-            const cashIdr = ExchangeRateService.thbToIdr(balances.cash || 0);
-            cashBalanceIdr.textContent = `≈ ${ExchangeRateService.format(cashIdr, 'IDR')}`;
+        if (bankBalanceIDRValue) {
+            bankBalanceIDRValue.textContent = ExchangeRateService.formatNumber((balances.bank || 0) * rate);
         }
 
-        // Legacy displays
-        const thbDisplay = document.getElementById('thbBalance');
-        const idrDisplay = document.getElementById('idrBalance');
-        const idrEquiv = document.getElementById('idrEquivalent');
+        // Cash balance - match HTML element IDs
+        const cashBalanceValue = document.getElementById('cashBalanceValue');
+        const cashBalanceIDRValue = document.getElementById('cashBalanceIDRValue');
+        if (cashBalanceValue) {
+            cashBalanceValue.textContent = ExchangeRateService.formatNumber(balances.cash || 0);
+        }
+        if (cashBalanceIDRValue) {
+            cashBalanceIDRValue.textContent = ExchangeRateService.formatNumber((balances.cash || 0) * rate);
+        }
 
-        if (thbDisplay) {
+        // Update header total balance
+        const totalBalanceTHB = document.getElementById('totalBalanceTHB');
+        if (totalBalanceTHB) {
             const totalThb = (balances.bank || 0) + (balances.cash || 0);
-            thbDisplay.textContent = ExchangeRateService.format(totalThb, 'THB');
+            totalBalanceTHB.textContent = `฿ ${ExchangeRateService.formatNumber(totalThb)}`;
         }
 
-        if (idrDisplay) {
-            idrDisplay.textContent = ExchangeRateService.format(balances.idr || 0, 'IDR');
+        // Update bank and cash exchange rate displays
+        const bankExchangeRate = document.getElementById('bankExchangeRate');
+        const cashExchangeRate = document.getElementById('cashExchangeRate');
+        if (bankExchangeRate) bankExchangeRate.textContent = `${Math.round(rate)} IDR/THB`;
+        if (cashExchangeRate) cashExchangeRate.textContent = `${Math.round(rate)} IDR/THB`;
+
+        // Update last transaction info
+        if (this.transactions && this.transactions.length > 0) {
+            const lastBankTx = this.transactions.find(t => t.paymentMethod === 'bank');
+            const lastCashTx = this.transactions.find(t => t.paymentMethod === 'cash');
+
+            const bankLastTx = document.getElementById('bankLastTx');
+            const cashLastTx = document.getElementById('cashLastTx');
+
+            if (bankLastTx && lastBankTx) {
+                bankLastTx.textContent = `${lastBankTx.type === 'income' ? '+' : '-'}฿${ExchangeRateService.formatNumber(lastBankTx.amount)}`;
+            }
+            if (cashLastTx && lastCashTx) {
+                cashLastTx.textContent = `${lastCashTx.type === 'income' ? '+' : '-'}฿${ExchangeRateService.formatNumber(lastCashTx.amount)}`;
+            }
         }
 
-        if (idrEquiv) {
-            const totalThb = (balances.bank || 0) + (balances.cash || 0);
-            const equiv = ExchangeRateService.thbToIdr(totalThb);
-            idrEquiv.textContent = `(${ExchangeRateService.format(equiv, 'IDR')})`;
-        }
-
-        // Update header stats
-        const totalBalanceThb = document.getElementById('totalBalanceThb');
-        const totalBalanceIdr = document.getElementById('totalBalanceIdr');
-        if (totalBalanceThb) {
-            const totalThb = (balances.bank || 0) + (balances.cash || 0);
-            totalBalanceThb.textContent = ExchangeRateService.format(totalThb, 'THB');
-        }
-        if (totalBalanceIdr) {
-            const totalThb = (balances.bank || 0) + (balances.cash || 0);
-            const totalIdr = ExchangeRateService.thbToIdr(totalThb);
-            totalBalanceIdr.textContent = ExchangeRateService.format(totalIdr, 'IDR');
-        }
+        // Update last updated timestamps
+        const bankLastUpdated = document.getElementById('bankLastUpdated');
+        const cashLastUpdated = document.getElementById('cashLastUpdated');
+        const now = new Date().toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+        if (bankLastUpdated) bankLastUpdated.textContent = now;
+        if (cashLastUpdated) cashLastUpdated.textContent = now;
     },
 
     /**

@@ -798,29 +798,40 @@
                     <div class="reading-grid">
                         <div class="reading-card">
                             <div class="reading-label">
-                                <i class="fas fa-history"></i> Last Reading
+                                <i class="fas fa-history"></i> Past Reading
                             </div>
-                            <div class="reading-value" id="electricityLastReading">0 kWh</div>
-                            <div class="reading-date" id="electricityLastDate">Date: -</div>
+                            <div class="reading-value" id="electricityPastReading">0 kWh</div>
+                            <div class="reading-date" id="electricityPastDate">Date: -</div>
                         </div>
 
-                        <div class="reading-card current">
+                        <div class="reading-card ongoing">
                             <div class="reading-label">
-                                <i class="fas fa-edit"></i> Current Reading
+                                <i class="fas fa-tachometer-alt"></i> Ongoing Reading
                             </div>
-                            <input type="number" class="current-reading-input" id="electricityCurrentReading" placeholder="Enter reading" step="0.01" inputmode="decimal">
+                            <div class="reading-value" id="electricityOngoingReading">0 kWh</div>
+                            <div class="reading-date" id="electricityOngoingDate">Date: -</div>
+                        </div>
+                    </div>
+
+                    <!-- Current Reading Input -->
+                    <div class="current-reading-section">
+                        <div class="reading-label">
+                            <i class="fas fa-edit"></i> Enter Current Reading
+                        </div>
+                        <div class="current-reading-inputs">
+                            <input type="number" class="current-reading-input" id="electricityCurrentReading" placeholder="Enter current reading" step="0.01" inputmode="decimal">
                             <input type="date" class="reading-date-input" id="electricityCurrentDate">
                         </div>
                     </div>
 
                     <button class="btn btn-primary btn-block" id="calculateElectricityBtn">
-                        <i class="fas fa-calculator"></i> Calculate Consumption
+                        <i class="fas fa-calculator"></i> Calculate Estimation
                     </button>
 
                     <div class="calculation-result" id="electricityCalcResult" style="display: none;">
                         <div class="calc-grid">
                             <div class="calc-item">
-                                <div class="calc-label">Total Consumption</div>
+                                <div class="calc-label">Estimated Usage</div>
                                 <div class="calc-value" id="electricityTotal">0 kWh</div>
                             </div>
                             <div class="calc-item">
@@ -832,9 +843,14 @@
                                 <div class="calc-value" id="electricityAverage">0 kWh/day</div>
                             </div>
                             <div class="calc-item">
-                                <div class="calc-label">Total Cost</div>
+                                <div class="calc-label">Estimated Cost</div>
                                 <div class="calc-value" id="electricityCostTHB">฿ 0.00</div>
                             </div>
+                        </div>
+
+                        <div class="estimation-note">
+                            <i class="fas fa-info-circle"></i>
+                            <span>This is an estimation only. Saving will update the Ongoing Reading.</span>
                         </div>
 
                         <div class="warning-alert" id="electricityWarning" style="display: none;">
@@ -847,7 +863,7 @@
 
                         <div class="calc-actions">
                             <button class="btn btn-success" id="saveElectricityBtn">
-                                <i class="fas fa-save"></i> Save Reading
+                                <i class="fas fa-save"></i> Save as Ongoing
                             </button>
                             <button class="btn btn-outline" id="cancelElectricityBtn">
                                 <i class="fas fa-times"></i> Cancel
@@ -879,29 +895,40 @@
                     <div class="reading-grid">
                         <div class="reading-card">
                             <div class="reading-label">
-                                <i class="fas fa-history"></i> Last Reading
+                                <i class="fas fa-history"></i> Past Reading
                             </div>
-                            <div class="reading-value" id="waterLastReading">0 units</div>
-                            <div class="reading-date" id="waterLastDate">Date: -</div>
+                            <div class="reading-value" id="waterPastReading">0 units</div>
+                            <div class="reading-date" id="waterPastDate">Date: -</div>
                         </div>
 
-                        <div class="reading-card current">
+                        <div class="reading-card ongoing">
                             <div class="reading-label">
-                                <i class="fas fa-edit"></i> Current Reading
+                                <i class="fas fa-tachometer-alt"></i> Ongoing Reading
                             </div>
-                            <input type="number" class="current-reading-input" id="waterCurrentReading" placeholder="Enter reading" step="0.01" inputmode="decimal">
+                            <div class="reading-value" id="waterOngoingReading">0 units</div>
+                            <div class="reading-date" id="waterOngoingDate">Date: -</div>
+                        </div>
+                    </div>
+
+                    <!-- Current Reading Input -->
+                    <div class="current-reading-section">
+                        <div class="reading-label">
+                            <i class="fas fa-edit"></i> Enter Current Reading
+                        </div>
+                        <div class="current-reading-inputs">
+                            <input type="number" class="current-reading-input" id="waterCurrentReading" placeholder="Enter current reading" step="0.01" inputmode="decimal">
                             <input type="date" class="reading-date-input" id="waterCurrentDate">
                         </div>
                     </div>
 
                     <button class="btn btn-primary btn-block" id="calculateWaterBtn">
-                        <i class="fas fa-calculator"></i> Calculate Consumption
+                        <i class="fas fa-calculator"></i> Calculate Estimation
                     </button>
 
                     <div class="calculation-result" id="waterCalcResult" style="display: none;">
                         <div class="calc-grid">
                             <div class="calc-item">
-                                <div class="calc-label">Total Consumption</div>
+                                <div class="calc-label">Estimated Usage</div>
                                 <div class="calc-value" id="waterTotal">0 units</div>
                             </div>
                             <div class="calc-item">
@@ -913,14 +940,19 @@
                                 <div class="calc-value" id="waterAverage">0 units/day</div>
                             </div>
                             <div class="calc-item">
-                                <div class="calc-label">Total Cost</div>
+                                <div class="calc-label">Estimated Cost</div>
                                 <div class="calc-value" id="waterCostTHB">฿ 0.00</div>
                             </div>
                         </div>
 
+                        <div class="estimation-note">
+                            <i class="fas fa-info-circle"></i>
+                            <span>This is an estimation only. Saving will update the Ongoing Reading.</span>
+                        </div>
+
                         <div class="calc-actions">
                             <button class="btn btn-success" id="saveWaterBtn">
-                                <i class="fas fa-save"></i> Save Reading
+                                <i class="fas fa-save"></i> Save as Ongoing
                             </button>
                             <button class="btn btn-outline" id="cancelWaterBtn">
                                 <i class="fas fa-times"></i> Cancel

@@ -618,6 +618,8 @@ const App = {
      * Save wizard step data
      */
     saveWizardStepData(step) {
+        const today = new Date().toISOString().split('T')[0];
+
         switch(step) {
             case 3: // Balances
                 const bankBalance = parseFloat(document.getElementById('initialBankBalance')?.value) || 0;
@@ -629,7 +631,11 @@ const App = {
                     cash: cashBalance
                 });
                 break;
-            case 5: // Utilities
+            case 4: // Categories - Save categories from wizard
+                const categories = DataManager.getCategories();
+                DataManager.saveCategories(categories);
+                break;
+            case 5: // Utilities - Save as past readings
                 const elecReading = parseFloat(document.getElementById('initialElectricityReading')?.value) || 0;
                 const elecRate = parseFloat(document.getElementById('electricityRateSetup')?.value) || 8;
                 const waterReading = parseFloat(document.getElementById('initialWaterReading')?.value) || 0;
@@ -640,12 +646,18 @@ const App = {
                         rate: elecRate,
                         threshold: 3,
                         readings: [],
-                        lastReading: elecReading
+                        pastReading: elecReading,
+                        pastReadingDate: today,
+                        ongoingReading: elecReading,
+                        ongoingReadingDate: today
                     },
                     water: {
                         rate: waterRate,
                         readings: [],
-                        lastReading: waterReading
+                        pastReading: waterReading,
+                        pastReadingDate: today,
+                        ongoingReading: waterReading,
+                        ongoingReadingDate: today
                     }
                 });
                 break;
@@ -698,7 +710,7 @@ const App = {
     },
 
     /**
-     * Calculate electricity
+     * Calculate electricity estimation (does NOT add to expenses)
      */
     calculateElectricity() {
         const currentReading = parseFloat(document.getElementById('electricityCurrentReading')?.value);
@@ -709,49 +721,40 @@ const App = {
             return;
         }
 
-        const utilities = DataManager.getUtilities();
-        const lastReading = utilities.electricity.lastReading || 0;
-        const rate = utilities.electricity.rate || 8;
-
-        const usage = currentReading - lastReading;
-        const cost = usage * rate;
+        // Use UtilitiesManager to calculate estimation
+        const estimation = UtilitiesManager.calculateElectricityEstimation(currentReading, currentDate);
 
         // Show result
-        document.getElementById('electricityTotal').textContent = `${usage.toFixed(2)} kWh`;
-        document.getElementById('electricityCostTHB').textContent = `฿ ${cost.toFixed(2)}`;
+        document.getElementById('electricityTotal').textContent = `${estimation.usage.toFixed(2)} kWh`;
+        document.getElementById('electricityDays').textContent = `${estimation.daysBetween} days`;
+        document.getElementById('electricityAverage').textContent = `${estimation.averagePerDay.toFixed(2)} kWh/day`;
+        document.getElementById('electricityCostTHB').textContent = `฿ ${estimation.cost.toFixed(2)}`;
         document.getElementById('electricityCalcResult').style.display = 'block';
 
-        // Save electricity button
+        // Show warning if high consumption
+        const warningEl = document.getElementById('electricityWarning');
+        if (warningEl && estimation.averagePerDay > estimation.threshold) {
+            warningEl.style.display = 'flex';
+        } else if (warningEl) {
+            warningEl.style.display = 'none';
+        }
+
+        // Save as Ongoing button (does NOT add expense)
         const saveBtn = document.getElementById('saveElectricityBtn');
         if (saveBtn) {
             saveBtn.onclick = () => {
-                utilities.electricity.lastReading = currentReading;
-                utilities.electricity.readings.unshift({
-                    date: currentDate,
-                    reading: currentReading,
-                    usage: usage,
-                    cost: cost
-                });
-                DataManager.saveUtilities(utilities);
+                // Update ongoing reading only (not past reading)
+                UtilitiesManager.setElectricityOngoingReading(currentReading, currentDate);
 
-                // Add as expense
-                TransactionsManager.add({
-                    date: currentDate,
-                    amount: cost,
-                    type: 'expense',
-                    category: 'Utilities',
-                    description: `Electricity bill: ${usage.toFixed(2)} kWh`,
-                    currency: 'THB'
-                });
-
-                this.showToast('Electricity reading saved', 'success');
+                this.showToast('Ongoing reading updated (estimation only, not added to expenses)', 'success');
                 document.getElementById('electricityCalcResult').style.display = 'none';
+                document.getElementById('electricityCurrentReading').value = '';
             };
         }
     },
 
     /**
-     * Calculate water
+     * Calculate water estimation (does NOT add to expenses)
      */
     calculateWater() {
         const currentReading = parseFloat(document.getElementById('waterCurrentReading')?.value);
@@ -762,43 +765,26 @@ const App = {
             return;
         }
 
-        const utilities = DataManager.getUtilities();
-        const lastReading = utilities.water.lastReading || 0;
-        const rate = utilities.water.rate || 20;
-
-        const usage = currentReading - lastReading;
-        const cost = usage * rate;
+        // Use UtilitiesManager to calculate estimation
+        const estimation = UtilitiesManager.calculateWaterEstimation(currentReading, currentDate);
 
         // Show result
-        document.getElementById('waterTotal').textContent = `${usage.toFixed(2)} units`;
-        document.getElementById('waterCostTHB').textContent = `฿ ${cost.toFixed(2)}`;
+        document.getElementById('waterTotal').textContent = `${estimation.usage.toFixed(2)} units`;
+        document.getElementById('waterDays').textContent = `${estimation.daysBetween} days`;
+        document.getElementById('waterAverage').textContent = `${estimation.averagePerDay.toFixed(2)} units/day`;
+        document.getElementById('waterCostTHB').textContent = `฿ ${estimation.cost.toFixed(2)}`;
         document.getElementById('waterCalcResult').style.display = 'block';
 
-        // Save water button
+        // Save as Ongoing button (does NOT add expense)
         const saveBtn = document.getElementById('saveWaterBtn');
         if (saveBtn) {
             saveBtn.onclick = () => {
-                utilities.water.lastReading = currentReading;
-                utilities.water.readings.unshift({
-                    date: currentDate,
-                    reading: currentReading,
-                    usage: usage,
-                    cost: cost
-                });
-                DataManager.saveUtilities(utilities);
+                // Update ongoing reading only (not past reading)
+                UtilitiesManager.setWaterOngoingReading(currentReading, currentDate);
 
-                // Add as expense
-                TransactionsManager.add({
-                    date: currentDate,
-                    amount: cost,
-                    type: 'expense',
-                    category: 'Utilities',
-                    description: `Water bill: ${usage.toFixed(2)} units`,
-                    currency: 'THB'
-                });
-
-                this.showToast('Water reading saved', 'success');
+                this.showToast('Ongoing reading updated (estimation only, not added to expenses)', 'success');
                 document.getElementById('waterCalcResult').style.display = 'none';
+                document.getElementById('waterCurrentReading').value = '';
             };
         }
     },

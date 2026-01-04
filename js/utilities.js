@@ -1,6 +1,6 @@
 /**
  * Hans Financial Note - Utilities Tracking Module
- * Handles electricity and water utility consumption tracking
+ * Handles electricity and water utility consumption tracking with Ongoing Reading feature
  */
 
 const UtilitiesManager = {
@@ -18,44 +18,188 @@ const UtilitiesManager = {
                 electricity: {
                     rate: CONFIG.utilities.electricity.defaultRate,
                     threshold: CONFIG.utilities.electricity.defaultThreshold,
-                    readings: []
+                    readings: [],
+                    pastReading: 0,
+                    pastReadingDate: null,
+                    ongoingReading: 0,
+                    ongoingReadingDate: null
                 },
                 water: {
                     rate: CONFIG.utilities.water.defaultRate,
-                    readings: []
+                    readings: [],
+                    pastReading: 0,
+                    pastReadingDate: null,
+                    ongoingReading: 0,
+                    ongoingReadingDate: null
                 }
             };
             DataManager.saveUtilities(this.utilities);
         }
 
-        // Ensure electricity readings array exists
+        // Ensure electricity structure exists
         if (!this.utilities.electricity) {
             this.utilities.electricity = {
                 rate: CONFIG.utilities.electricity.defaultRate,
                 threshold: CONFIG.utilities.electricity.defaultThreshold,
-                readings: []
+                readings: [],
+                pastReading: 0,
+                pastReadingDate: null,
+                ongoingReading: 0,
+                ongoingReadingDate: null
             };
         }
         if (!this.utilities.electricity.readings) {
             this.utilities.electricity.readings = [];
         }
+        // Migrate from old structure if needed
+        if (this.utilities.electricity.lastReading !== undefined && this.utilities.electricity.pastReading === undefined) {
+            this.utilities.electricity.pastReading = this.utilities.electricity.lastReading;
+            this.utilities.electricity.ongoingReading = this.utilities.electricity.lastReading;
+        }
+        if (this.utilities.electricity.pastReading === undefined) {
+            this.utilities.electricity.pastReading = 0;
+        }
+        if (this.utilities.electricity.ongoingReading === undefined) {
+            this.utilities.electricity.ongoingReading = 0;
+        }
 
-        // Ensure water readings array exists
+        // Ensure water structure exists
         if (!this.utilities.water) {
             this.utilities.water = {
                 rate: CONFIG.utilities.water.defaultRate,
-                readings: []
+                readings: [],
+                pastReading: 0,
+                pastReadingDate: null,
+                ongoingReading: 0,
+                ongoingReadingDate: null
             };
         }
         if (!this.utilities.water.readings) {
             this.utilities.water.readings = [];
         }
+        // Migrate from old structure if needed
+        if (this.utilities.water.lastReading !== undefined && this.utilities.water.pastReading === undefined) {
+            this.utilities.water.pastReading = this.utilities.water.lastReading;
+            this.utilities.water.ongoingReading = this.utilities.water.lastReading;
+        }
+        if (this.utilities.water.pastReading === undefined) {
+            this.utilities.water.pastReading = 0;
+        }
+        if (this.utilities.water.ongoingReading === undefined) {
+            this.utilities.water.ongoingReading = 0;
+        }
 
+        DataManager.saveUtilities(this.utilities);
         this.updateUI();
     },
 
     /**
-     * Add electricity reading
+     * Set past reading (from configuration)
+     */
+    setElectricityPastReading(value, date) {
+        this.utilities.electricity.pastReading = parseFloat(value) || 0;
+        this.utilities.electricity.pastReadingDate = date || new Date().toISOString().split('T')[0];
+        DataManager.saveUtilities(this.utilities);
+        this.updateUI();
+    },
+
+    setWaterPastReading(value, date) {
+        this.utilities.water.pastReading = parseFloat(value) || 0;
+        this.utilities.water.pastReadingDate = date || new Date().toISOString().split('T')[0];
+        DataManager.saveUtilities(this.utilities);
+        this.updateUI();
+    },
+
+    /**
+     * Set ongoing reading (from current reading input)
+     */
+    setElectricityOngoingReading(value, date) {
+        this.utilities.electricity.ongoingReading = parseFloat(value) || 0;
+        this.utilities.electricity.ongoingReadingDate = date || new Date().toISOString().split('T')[0];
+        DataManager.saveUtilities(this.utilities);
+        this.updateUI();
+    },
+
+    setWaterOngoingReading(value, date) {
+        this.utilities.water.ongoingReading = parseFloat(value) || 0;
+        this.utilities.water.ongoingReadingDate = date || new Date().toISOString().split('T')[0];
+        DataManager.saveUtilities(this.utilities);
+        this.updateUI();
+    },
+
+    /**
+     * Calculate electricity estimation (does NOT add to expenses)
+     */
+    calculateElectricityEstimation(currentReading, currentDate) {
+        const pastReading = this.utilities.electricity.pastReading || 0;
+        const pastDate = this.utilities.electricity.pastReadingDate;
+        const rate = this.utilities.electricity.rate || 8;
+        const threshold = this.utilities.electricity.threshold || 3;
+
+        const usage = currentReading - pastReading;
+
+        // Calculate days between
+        let daysBetween = 0;
+        if (pastDate && currentDate) {
+            const startDate = new Date(pastDate);
+            const endDate = new Date(currentDate);
+            daysBetween = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        }
+
+        // Calculate average per day
+        const averagePerDay = daysBetween > 0 ? usage / daysBetween : 0;
+
+        // Calculate cost (estimation only, not added to expenses)
+        let cost = 0;
+        if (usage > threshold) {
+            cost = (usage - threshold) * rate;
+        }
+
+        return {
+            usage: usage,
+            cost: cost,
+            daysBetween: daysBetween,
+            averagePerDay: averagePerDay,
+            rate: rate,
+            threshold: threshold
+        };
+    },
+
+    /**
+     * Calculate water estimation (does NOT add to expenses)
+     */
+    calculateWaterEstimation(currentReading, currentDate) {
+        const pastReading = this.utilities.water.pastReading || 0;
+        const pastDate = this.utilities.water.pastReadingDate;
+        const rate = this.utilities.water.rate || 20;
+
+        const usage = currentReading - pastReading;
+
+        // Calculate days between
+        let daysBetween = 0;
+        if (pastDate && currentDate) {
+            const startDate = new Date(pastDate);
+            const endDate = new Date(currentDate);
+            daysBetween = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        }
+
+        // Calculate average per day
+        const averagePerDay = daysBetween > 0 ? usage / daysBetween : 0;
+
+        // Calculate cost (estimation only, not added to expenses)
+        const cost = usage * rate;
+
+        return {
+            usage: usage,
+            cost: cost,
+            daysBetween: daysBetween,
+            averagePerDay: averagePerDay,
+            rate: rate
+        };
+    },
+
+    /**
+     * Add electricity reading (legacy function for actual consumption records)
      */
     addElectricityReading(date, previous, current) {
         const usage = current - previous;
@@ -64,7 +208,7 @@ const UtilitiesManager = {
 
         let cost;
         if (usage <= threshold) {
-            cost = 0; // Free under threshold
+            cost = 0;
         } else {
             cost = (usage - threshold) * rate;
         }
@@ -83,26 +227,12 @@ const UtilitiesManager = {
         this.utilities.electricity.readings.unshift(reading);
         DataManager.saveUtilities(this.utilities);
 
-        // Create automatic expense transaction if cost > 0
-        if (cost > 0) {
-            DataManager.addTransaction({
-                type: 'expense',
-                category: 'Utilities',
-                amount: cost,
-                currency: 'THB',
-                description: `Electricity bill: ${usage} kWh`,
-                date: date,
-                utilityId: reading.id,
-                utilityType: 'electricity'
-            });
-        }
-
         this.updateUI();
         return reading;
     },
 
     /**
-     * Add water reading
+     * Add water reading (legacy function for actual consumption records)
      */
     addWaterReading(date, previous, current) {
         const usage = current - previous;
@@ -121,20 +251,6 @@ const UtilitiesManager = {
 
         this.utilities.water.readings.unshift(reading);
         DataManager.saveUtilities(this.utilities);
-
-        // Create automatic expense transaction
-        if (cost > 0) {
-            DataManager.addTransaction({
-                type: 'expense',
-                category: 'Utilities',
-                amount: cost,
-                currency: 'THB',
-                description: `Water bill: ${usage} units`,
-                date: date,
-                utilityId: reading.id,
-                utilityType: 'water'
-            });
-        }
 
         this.updateUI();
         return reading;
@@ -285,57 +401,60 @@ const UtilitiesManager = {
             return;
         }
 
-        // Update electricity section
+        // Update electricity displays
+        const elecRateDisplay = document.getElementById('electricityRateDisplay');
+        if (elecRateDisplay) elecRateDisplay.textContent = this.utilities.electricity.rate || 8;
+
+        // Past Reading
+        const elecPastReading = document.getElementById('electricityPastReading');
+        const elecPastDate = document.getElementById('electricityPastDate');
+        if (elecPastReading) elecPastReading.textContent = `${this.utilities.electricity.pastReading || 0} kWh`;
+        if (elecPastDate) elecPastDate.textContent = this.utilities.electricity.pastReadingDate ?
+            `Date: ${this.formatDate(this.utilities.electricity.pastReadingDate)}` : 'Date: Not set';
+
+        // Ongoing Reading
+        const elecOngoingReading = document.getElementById('electricityOngoingReading');
+        const elecOngoingDate = document.getElementById('electricityOngoingDate');
+        if (elecOngoingReading) elecOngoingReading.textContent = `${this.utilities.electricity.ongoingReading || 0} kWh`;
+        if (elecOngoingDate) elecOngoingDate.textContent = this.utilities.electricity.ongoingReadingDate ?
+            `Date: ${this.formatDate(this.utilities.electricity.ongoingReadingDate)}` : 'Date: Not set';
+
+        // Update water displays
+        const waterRateDisplay = document.getElementById('waterRateDisplay');
+        if (waterRateDisplay) waterRateDisplay.textContent = this.utilities.water.rate || 20;
+
+        // Past Reading
+        const waterPastReading = document.getElementById('waterPastReading');
+        const waterPastDate = document.getElementById('waterPastDate');
+        if (waterPastReading) waterPastReading.textContent = `${this.utilities.water.pastReading || 0} units`;
+        if (waterPastDate) waterPastDate.textContent = this.utilities.water.pastReadingDate ?
+            `Date: ${this.formatDate(this.utilities.water.pastReadingDate)}` : 'Date: Not set';
+
+        // Ongoing Reading
+        const waterOngoingReading = document.getElementById('waterOngoingReading');
+        const waterOngoingDate = document.getElementById('waterOngoingDate');
+        if (waterOngoingReading) waterOngoingReading.textContent = `${this.utilities.water.ongoingReading || 0} units`;
+        if (waterOngoingDate) waterOngoingDate.textContent = this.utilities.water.ongoingReadingDate ?
+            `Date: ${this.formatDate(this.utilities.water.ongoingReadingDate)}` : 'Date: Not set';
+
+        // Update last update timestamps
+        const elecLastUpdate = document.getElementById('electricityLastUpdate');
+        const waterLastUpdate = document.getElementById('waterLastUpdate');
+        if (elecLastUpdate && this.utilities.electricity.ongoingReadingDate) {
+            elecLastUpdate.textContent = this.formatDate(this.utilities.electricity.ongoingReadingDate);
+        }
+        if (waterLastUpdate && this.utilities.water.ongoingReadingDate) {
+            waterLastUpdate.textContent = this.formatDate(this.utilities.water.ongoingReadingDate);
+        }
+
+        // Legacy update for settings modal if present
         const elecRate = document.getElementById('electricityRate');
         const elecThreshold = document.getElementById('electricityThreshold');
-        const elecTable = document.getElementById('electricityReadings');
+        const waterRate = document.getElementById('waterRate');
 
         if (elecRate) elecRate.value = this.utilities.electricity.rate;
         if (elecThreshold) elecThreshold.value = this.utilities.electricity.threshold;
-
-        if (elecTable) {
-            elecTable.innerHTML = this.utilities.electricity.readings
-                .slice(0, 5)
-                .map(r => `
-                    <tr>
-                        <td>${this.formatDate(r.date)}</td>
-                        <td>${r.previous}</td>
-                        <td>${r.current}</td>
-                        <td>${r.usage} kWh</td>
-                        <td>${ExchangeRateService.format(r.cost, 'THB')}</td>
-                        <td>
-                            <button class="btn btn-small btn-danger" onclick="UtilitiesManager.deleteElectricityReading('${r.id}')">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-        }
-
-        // Update water section
-        const waterRate = document.getElementById('waterRate');
-        const waterTable = document.getElementById('waterReadings');
-
         if (waterRate) waterRate.value = this.utilities.water.rate;
-
-        if (waterTable) {
-            waterTable.innerHTML = this.utilities.water.readings
-                .slice(0, 5)
-                .map(r => `
-                    <tr>
-                        <td>${this.formatDate(r.date)}</td>
-                        <td>${r.previous}</td>
-                        <td>${r.current}</td>
-                        <td>${r.usage} units</td>
-                        <td>${ExchangeRateService.format(r.cost, 'THB')}</td>
-                        <td>
-                            <button class="btn btn-small btn-danger" onclick="UtilitiesManager.deleteWaterReading('${r.id}')">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-        }
 
         // Update summary cards
         const monthCosts = this.getCurrentMonthCost();
@@ -343,15 +462,22 @@ const UtilitiesManager = {
         const waterCostDisplay = document.getElementById('waterCost');
         const totalUtilCost = document.getElementById('totalUtilityCost');
 
-        if (elecCostDisplay) elecCostDisplay.textContent = ExchangeRateService.format(monthCosts.electricity, 'THB');
-        if (waterCostDisplay) waterCostDisplay.textContent = ExchangeRateService.format(monthCosts.water, 'THB');
-        if (totalUtilCost) totalUtilCost.textContent = ExchangeRateService.format(monthCosts.total, 'THB');
+        if (elecCostDisplay && typeof ExchangeRateService !== 'undefined') {
+            elecCostDisplay.textContent = ExchangeRateService.format(monthCosts.electricity, 'THB');
+        }
+        if (waterCostDisplay && typeof ExchangeRateService !== 'undefined') {
+            waterCostDisplay.textContent = ExchangeRateService.format(monthCosts.water, 'THB');
+        }
+        if (totalUtilCost && typeof ExchangeRateService !== 'undefined') {
+            totalUtilCost.textContent = ExchangeRateService.format(monthCosts.total, 'THB');
+        }
     },
 
     /**
      * Format date for display
      */
     formatDate(dateStr) {
+        if (!dateStr) return '-';
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
@@ -361,7 +487,7 @@ const UtilitiesManager = {
     },
 
     /**
-     * Handle electricity form submission
+     * Handle electricity form submission (legacy)
      */
     handleElectricitySubmit(event) {
         event.preventDefault();
@@ -387,7 +513,7 @@ const UtilitiesManager = {
     },
 
     /**
-     * Handle water form submission
+     * Handle water form submission (legacy)
      */
     handleWaterSubmit(event) {
         event.preventDefault();
