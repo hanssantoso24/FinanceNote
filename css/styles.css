@@ -2737,3 +2737,77 @@ input:checked + .toggle-slider:before {
     font-size: 0.95rem;
     font-weight: 700;
 }
+
+/* ==========================================
+   CATEGORY BUDGET SETTINGS
+   ========================================== */
+.category-budget-settings {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
+    margin-bottom: 15px;
+}
+
+.category-budget-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--light-gray);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    gap: 15px;
+}
+
+.category-budget-row:last-child {
+    margin-bottom: 0;
+}
+
+.category-budget-row label {
+    font-weight: 500;
+    color: var(--text-primary);
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.category-budget-row .input-with-icon {
+    flex: 1;
+    max-width: 150px;
+}
+
+.category-budget-row .form-control {
+    padding: 8px 12px;
+    padding-right: 30px;
+    font-size: 0.9rem;
+}
+
+.category-item.over-budget {
+    border: 2px solid var(--danger);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.category-item .budget-limit {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    margin-left: 5px;
+}
+
+.category-item .danger {
+    color: var(--danger) !important;
+}
+
+.category-amounts-secondary {
+    margin-top: 4px;
+}
+
+.category-bar-fill.progress-good {
+    background: var(--gradient-success);
+}
+
+.category-bar-fill.progress-warning {
+    background: var(--gradient-gold);
+}
+
+.category-bar-fill.progress-danger {
+    background: var(--gradient-danger);
+}

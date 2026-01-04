@@ -105,21 +105,39 @@ const TransactionsManager = {
     updateBalances(transaction, action) {
         const balances = DataManager.getBalances();
         const amount = parseFloat(transaction.amount);
-        const currency = transaction.currency.toLowerCase();
+        const paymentMethod = transaction.paymentMethod || 'bank';
         const multiplier = action === 'add' ? 1 : -1;
 
         if (transaction.type === 'income') {
-            balances[currency] += amount * multiplier;
+            // Income adds to balance
+            if (paymentMethod === 'bank') {
+                balances.bank = (balances.bank || 0) + amount * multiplier;
+            } else if (paymentMethod === 'cash') {
+                balances.cash = (balances.cash || 0) + amount * multiplier;
+            }
+            balances.thb = (balances.bank || 0) + (balances.cash || 0);
         } else if (transaction.type === 'expense') {
-            balances[currency] -= amount * multiplier;
+            // Expense subtracts from balance
+            if (paymentMethod === 'bank') {
+                balances.bank = (balances.bank || 0) - amount * multiplier;
+            } else if (paymentMethod === 'cash') {
+                balances.cash = (balances.cash || 0) - amount * multiplier;
+            }
+            balances.thb = (balances.bank || 0) + (balances.cash || 0);
         } else if (transaction.type === 'transfer') {
-            // Handle currency transfers
-            if (transaction.fromCurrency && transaction.toCurrency) {
+            // Transfer between accounts (cash withdrawal)
+            if (transaction.category === 'Cash Withdrawal' || transaction.description?.toLowerCase().includes('withdrawal')) {
+                // Cash withdrawal: subtract from bank, add to cash
+                balances.bank = (balances.bank || 0) - amount * multiplier;
+                balances.cash = (balances.cash || 0) + amount * multiplier;
+            } else if (transaction.fromCurrency && transaction.toCurrency) {
+                // Currency transfer
                 const fromCurr = transaction.fromCurrency.toLowerCase();
                 const toCurr = transaction.toCurrency.toLowerCase();
                 balances[fromCurr] -= amount * multiplier;
                 balances[toCurr] += (transaction.toAmount || amount) * multiplier;
             }
+            balances.thb = (balances.bank || 0) + (balances.cash || 0);
         }
 
         DataManager.saveBalances(balances);
@@ -132,21 +150,59 @@ const TransactionsManager = {
     updateBalanceDisplay() {
         const balances = DataManager.getBalances();
 
+        // Bank balance
+        const bankBalanceThb = document.getElementById('bankBalanceThb');
+        const bankBalanceIdr = document.getElementById('bankBalanceIdr');
+        if (bankBalanceThb) {
+            bankBalanceThb.textContent = ExchangeRateService.format(balances.bank || 0, 'THB');
+        }
+        if (bankBalanceIdr) {
+            const bankIdr = ExchangeRateService.thbToIdr(balances.bank || 0);
+            bankBalanceIdr.textContent = `≈ ${ExchangeRateService.format(bankIdr, 'IDR')}`;
+        }
+
+        // Cash balance
+        const cashBalanceThb = document.getElementById('cashBalanceThb');
+        const cashBalanceIdr = document.getElementById('cashBalanceIdr');
+        if (cashBalanceThb) {
+            cashBalanceThb.textContent = ExchangeRateService.format(balances.cash || 0, 'THB');
+        }
+        if (cashBalanceIdr) {
+            const cashIdr = ExchangeRateService.thbToIdr(balances.cash || 0);
+            cashBalanceIdr.textContent = `≈ ${ExchangeRateService.format(cashIdr, 'IDR')}`;
+        }
+
+        // Legacy displays
         const thbDisplay = document.getElementById('thbBalance');
         const idrDisplay = document.getElementById('idrBalance');
         const idrEquiv = document.getElementById('idrEquivalent');
 
         if (thbDisplay) {
-            thbDisplay.textContent = ExchangeRateService.format(balances.thb, 'THB');
+            const totalThb = (balances.bank || 0) + (balances.cash || 0);
+            thbDisplay.textContent = ExchangeRateService.format(totalThb, 'THB');
         }
 
         if (idrDisplay) {
-            idrDisplay.textContent = ExchangeRateService.format(balances.idr, 'IDR');
+            idrDisplay.textContent = ExchangeRateService.format(balances.idr || 0, 'IDR');
         }
 
         if (idrEquiv) {
-            const equiv = ExchangeRateService.thbToIdr(balances.thb);
+            const totalThb = (balances.bank || 0) + (balances.cash || 0);
+            const equiv = ExchangeRateService.thbToIdr(totalThb);
             idrEquiv.textContent = `(${ExchangeRateService.format(equiv, 'IDR')})`;
+        }
+
+        // Update header stats
+        const totalBalanceThb = document.getElementById('totalBalanceThb');
+        const totalBalanceIdr = document.getElementById('totalBalanceIdr');
+        if (totalBalanceThb) {
+            const totalThb = (balances.bank || 0) + (balances.cash || 0);
+            totalBalanceThb.textContent = ExchangeRateService.format(totalThb, 'THB');
+        }
+        if (totalBalanceIdr) {
+            const totalThb = (balances.bank || 0) + (balances.cash || 0);
+            const totalIdr = ExchangeRateService.thbToIdr(totalThb);
+            totalBalanceIdr.textContent = ExchangeRateService.format(totalIdr, 'IDR');
         }
     },
 
@@ -445,6 +501,7 @@ const TransactionsManager = {
             category: form.elements['category'].value,
             amount: parseFloat(form.elements['amount'].value),
             currency: form.elements['currency'].value,
+            paymentMethod: form.elements['paymentMethod']?.value || 'bank',
             description: form.elements['description'].value
         };
 

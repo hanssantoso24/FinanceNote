@@ -66,6 +66,9 @@ const App = {
                 this.showSetupWizard();
             }
 
+            // Initialize category dropdowns
+            this.initializeCategoryDropdowns();
+
             // Set up auto-sync
             this.setupAutoSync();
 
@@ -878,15 +881,63 @@ const App = {
      * Update categories dropdown based on transaction type
      */
     updateCategories(type) {
-        const categorySelect = document.getElementById('transactionCategory');
+        // Try multiple possible element IDs for category select
+        const categorySelect = document.getElementById('txCategory') ||
+                              document.getElementById('transactionCategory') ||
+                              document.getElementById('editCategory');
         if (!categorySelect) return;
 
         const categories = DataManager.getCategories();
         const options = categories[type] || [];
 
+        if (options.length === 0) {
+            categorySelect.innerHTML = '<option value="">No categories available</option>';
+            return;
+        }
+
         categorySelect.innerHTML = options.map(cat =>
             `<option value="${cat}">${cat}</option>`
         ).join('');
+    },
+
+    /**
+     * Initialize category dropdowns on page load
+     */
+    initializeCategoryDropdowns() {
+        // Initialize main transaction form category
+        const txType = document.getElementById('txType');
+        const txCategory = document.getElementById('txCategory');
+
+        if (txType && txCategory) {
+            const type = txType.value || 'expense';
+            this.updateCategories(type);
+        }
+
+        // Also update setup wizard categories if present
+        this.updateSetupWizardCategories();
+    },
+
+    /**
+     * Update setup wizard category dropdowns
+     */
+    updateSetupWizardCategories() {
+        const categories = DataManager.getCategories();
+
+        // Setup wizard income categories
+        const wizardIncomeCategory = document.getElementById('wizardIncomeCategory');
+        if (wizardIncomeCategory && categories.income) {
+            wizardIncomeCategory.innerHTML = categories.income.map(cat =>
+                `<option value="${cat}">${cat}</option>`
+            ).join('');
+        }
+
+        // Setup wizard expense categories
+        const wizardExpenseCategory = document.getElementById('wizardExpenseCategory');
+        if (wizardExpenseCategory && categories.expense) {
+            wizardExpenseCategory.innerHTML = categories.expense.map(cat =>
+                `<option value="${cat}">${cat}</option>`
+            ).join('');
+        }
     },
 
     /**
@@ -1298,7 +1349,7 @@ const App = {
     },
 
     /**
-     * Save electricity reading
+     * Save electricity reading (just saves reading, doesn't add to expenses)
      */
     saveElectricityReading() {
         const currentReading = parseFloat(document.getElementById('electricityCurrentReading')?.value);
@@ -1310,44 +1361,73 @@ const App = {
         }
 
         const utilities = DataManager.getUtilities();
-        const lastReading = utilities.electricity.lastReading || 0;
-        const rate = utilities.electricity.rate || 8;
+        const lastReading = utilities.electricity?.lastReading || 0;
+        const rate = utilities.electricity?.rate || 8;
         const usage = currentReading - lastReading;
         const cost = usage * rate;
 
+        // Store previous reading info for display
+        const previousReading = {
+            reading: lastReading,
+            date: utilities.electricity?.lastReadingDate || '-'
+        };
+
         // Update utilities
+        if (!utilities.electricity) utilities.electricity = {};
         utilities.electricity.lastReading = currentReading;
+        utilities.electricity.lastReadingDate = currentDate;
+        utilities.electricity.lastUsage = usage;
+        utilities.electricity.lastCost = cost;
         if (!utilities.electricity.readings) utilities.electricity.readings = [];
         utilities.electricity.readings.unshift({
             date: currentDate,
             reading: currentReading,
+            previousReading: lastReading,
             usage: usage,
             cost: cost,
             timestamp: DateTime.now().toISO()
         });
         DataManager.saveUtilities(utilities);
 
-        // Add as expense transaction
-        TransactionsManager.add({
-            date: currentDate,
-            amount: cost,
-            type: 'expense',
-            category: 'Utilities',
-            description: `Electricity bill: ${usage.toFixed(2)} kWh`,
-            currency: 'THB',
-            paymentMethod: 'bank'
-        });
+        // Update display to show the saved reading info
+        this.updateElectricityDisplay(utilities.electricity);
 
         // Update UI
         UtilitiesManager.updateUI();
         document.getElementById('electricityCalcResult').style.display = 'none';
         document.getElementById('electricityCurrentReading').value = '';
 
-        this.showToast('Electricity reading saved and added to expenses', 'success');
+        this.showToast('Electricity reading saved. Add to expenses manually if needed.', 'success');
     },
 
     /**
-     * Save water reading
+     * Update electricity display with current reading info
+     */
+    updateElectricityDisplay(electricity) {
+        // Update last reading display
+        const lastReadingEl = document.getElementById('electricityLastReading');
+        const lastReadingDateEl = document.getElementById('electricityLastReadingDate');
+
+        if (lastReadingEl) {
+            lastReadingEl.textContent = `${electricity.lastReading?.toFixed(2) || '0.00'} kWh`;
+        }
+        if (lastReadingDateEl) {
+            lastReadingDateEl.textContent = electricity.lastReadingDate || '-';
+        }
+
+        // Update usage and cost display
+        const usageEl = document.getElementById('electricityUsage');
+        const costEl = document.getElementById('electricityCost');
+        if (usageEl) {
+            usageEl.textContent = `${electricity.lastUsage?.toFixed(2) || '0.00'} kWh`;
+        }
+        if (costEl) {
+            costEl.textContent = `฿${electricity.lastCost?.toFixed(2) || '0.00'}`;
+        }
+    },
+
+    /**
+     * Save water reading (just saves reading, doesn't add to expenses)
      */
     saveWaterReading() {
         const currentReading = parseFloat(document.getElementById('waterCurrentReading')?.value);
@@ -1359,40 +1439,63 @@ const App = {
         }
 
         const utilities = DataManager.getUtilities();
-        const lastReading = utilities.water.lastReading || 0;
-        const rate = utilities.water.rate || 20;
+        const lastReading = utilities.water?.lastReading || 0;
+        const rate = utilities.water?.rate || 20;
         const usage = currentReading - lastReading;
         const cost = usage * rate;
 
         // Update utilities
+        if (!utilities.water) utilities.water = {};
         utilities.water.lastReading = currentReading;
+        utilities.water.lastReadingDate = currentDate;
+        utilities.water.lastUsage = usage;
+        utilities.water.lastCost = cost;
         if (!utilities.water.readings) utilities.water.readings = [];
         utilities.water.readings.unshift({
             date: currentDate,
             reading: currentReading,
+            previousReading: lastReading,
             usage: usage,
             cost: cost,
             timestamp: DateTime.now().toISO()
         });
         DataManager.saveUtilities(utilities);
 
-        // Add as expense transaction
-        TransactionsManager.add({
-            date: currentDate,
-            amount: cost,
-            type: 'expense',
-            category: 'Utilities',
-            description: `Water bill: ${usage.toFixed(2)} units`,
-            currency: 'THB',
-            paymentMethod: 'bank'
-        });
+        // Update display
+        this.updateWaterDisplay(utilities.water);
 
         // Update UI
         UtilitiesManager.updateUI();
         document.getElementById('waterCalcResult').style.display = 'none';
         document.getElementById('waterCurrentReading').value = '';
 
-        this.showToast('Water reading saved and added to expenses', 'success');
+        this.showToast('Water reading saved. Add to expenses manually if needed.', 'success');
+    },
+
+    /**
+     * Update water display with current reading info
+     */
+    updateWaterDisplay(water) {
+        // Update last reading display
+        const lastReadingEl = document.getElementById('waterLastReading');
+        const lastReadingDateEl = document.getElementById('waterLastReadingDate');
+
+        if (lastReadingEl) {
+            lastReadingEl.textContent = `${water.lastReading?.toFixed(2) || '0.00'} units`;
+        }
+        if (lastReadingDateEl) {
+            lastReadingDateEl.textContent = water.lastReadingDate || '-';
+        }
+
+        // Update usage and cost display
+        const usageEl = document.getElementById('waterUsage');
+        const costEl = document.getElementById('waterCost');
+        if (usageEl) {
+            usageEl.textContent = `${water.lastUsage?.toFixed(2) || '0.00'} units`;
+        }
+        if (costEl) {
+            costEl.textContent = `฿${water.lastCost?.toFixed(2) || '0.00'}`;
+        }
     },
 
     /**
@@ -1645,6 +1748,8 @@ const App = {
         const budget = DataManager.getBudget();
         const transactions = DataManager.getTransactions();
         const rate = ExchangeRateService.getRate();
+        const categories = DataManager.getCategories();
+        const categoryBudgets = budget.categoryBudgets || {};
 
         // Calculate category spending
         const now = DateTime.now();
@@ -1685,9 +1790,35 @@ const App = {
 
             <div class="section-divider"></div>
 
+            <h4><i class="fas fa-wallet"></i> Budget Per Category (Monthly)</h4>
+            <div class="category-budget-settings">
+        `;
+
+        // Generate budget inputs for each expense category
+        (categories.expense || []).forEach(cat => {
+            const catBudget = categoryBudgets[cat] || 0;
+            content += `
+                <div class="category-budget-row">
+                    <label>${cat}</label>
+                    <div class="input-with-icon">
+                        <input type="number" class="form-control category-budget-input"
+                               data-category="${cat}" value="${catBudget}" step="100" placeholder="No limit">
+                        <span class="input-icon">฿</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        content += `
+            </div>
+
+            <div class="section-divider"></div>
+
             <h4><i class="fas fa-chart-pie"></i> Category Spending This Month</h4>
             <div class="category-breakdown">
         `;
+
+        let hasOverspending = false;
 
         if (Object.keys(categorySpending).length === 0) {
             content += '<p class="no-data">No expenses recorded this month</p>';
@@ -1696,20 +1827,45 @@ const App = {
             const sortedCategories = Object.entries(categorySpending).sort((a, b) => b[1] - a[1]);
 
             sortedCategories.forEach(([cat, amount]) => {
-                const percentage = monthlyBudget > 0 ? ((amount / monthlyBudget) * 100).toFixed(1) : 0;
+                const catBudget = categoryBudgets[cat] || 0;
                 const idrAmount = amount * rate;
+                let percentage = 0;
+                let isOverBudget = false;
+                let progressClass = 'progress-good';
+
+                if (catBudget > 0) {
+                    percentage = (amount / catBudget) * 100;
+                    isOverBudget = amount > catBudget;
+                    if (percentage >= 100) {
+                        progressClass = 'progress-danger';
+                        hasOverspending = true;
+                    } else if (percentage >= 80) {
+                        progressClass = 'progress-warning';
+                    }
+                } else {
+                    // Use overall budget percentage if no category budget
+                    percentage = monthlyBudget > 0 ? (amount / monthlyBudget) * 100 : 0;
+                }
+
+                const statusBadge = isOverBudget ?
+                    '<span class="badge badge-danger"><i class="fas fa-exclamation-triangle"></i> Over Budget!</span>' :
+                    (catBudget > 0 ? `<span class="badge">${percentage.toFixed(1)}% used</span>` : '');
+
                 content += `
-                    <div class="category-item">
+                    <div class="category-item ${isOverBudget ? 'over-budget' : ''}">
                         <div class="category-info">
                             <span class="category-name">${cat}</span>
-                            <span class="category-percentage">${percentage}% of budget</span>
+                            ${statusBadge}
                         </div>
                         <div class="category-amounts">
-                            <span class="amount-thb">฿${ExchangeRateService.formatNumber(amount)}</span>
+                            <span class="amount-thb ${isOverBudget ? 'danger' : ''}">฿${ExchangeRateService.formatNumber(amount)}</span>
+                            ${catBudget > 0 ? `<span class="budget-limit">/ ฿${ExchangeRateService.formatNumber(catBudget)}</span>` : ''}
+                        </div>
+                        <div class="category-amounts-secondary">
                             <span class="amount-idr">≈ Rp ${ExchangeRateService.formatNumber(idrAmount)}</span>
                         </div>
                         <div class="category-bar">
-                            <div class="category-bar-fill" style="width: ${Math.min(percentage, 100)}%"></div>
+                            <div class="category-bar-fill ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
                         </div>
                     </div>
                 `;
@@ -1718,7 +1874,22 @@ const App = {
 
         content += `
             </div>
+        `;
 
+        // Show overspending alert if any
+        if (hasOverspending) {
+            content += `
+                <div class="warning-alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <div class="alert-title">Budget Alert!</div>
+                        <div class="alert-text">You have exceeded budget limits in some categories. Consider reducing expenses.</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        content += `
             <div class="section-divider"></div>
 
             <div class="budget-summary-modal">
@@ -1727,13 +1898,22 @@ const App = {
                     <span class="expense">฿${ExchangeRateService.formatNumber(totalSpent)}</span>
                 </div>
                 <div class="summary-item">
+                    <span>Monthly Budget</span>
+                    <span>฿${ExchangeRateService.formatNumber(monthlyBudget)}</span>
+                </div>
+                <div class="summary-item">
                     <span>Remaining</span>
                     <span class="${monthlyBudget - totalSpent >= 0 ? 'success' : 'danger'}">฿${ExchangeRateService.formatNumber(monthlyBudget - totalSpent)}</span>
                 </div>
             </div>
 
             <div class="modal-actions">
-                <button type="button" class="btn btn-primary" onclick="App.saveBudgetConfig()">Save Settings</button>
+                <button type="button" class="btn btn-primary" onclick="App.saveBudgetConfig()">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('customModal').remove()">
+                    Cancel
+                </button>
             </div>
         `;
 
@@ -1747,9 +1927,20 @@ const App = {
         const annualIncome = parseFloat(document.getElementById('budgetAnnualIncome')?.value) || 600000;
         const monthlyBudget = parseFloat(document.getElementById('budgetMonthlyBudget')?.value) || 50000;
 
+        // Collect category budgets
+        const categoryBudgets = {};
+        document.querySelectorAll('.category-budget-input').forEach(input => {
+            const category = input.dataset.category;
+            const value = parseFloat(input.value) || 0;
+            if (category && value > 0) {
+                categoryBudgets[category] = value;
+            }
+        });
+
         const budget = DataManager.getBudget();
         budget.annualIncome = annualIncome;
         budget.monthlyBudget = monthlyBudget;
+        budget.categoryBudgets = categoryBudgets;
         DataManager.saveBudget(budget);
 
         BudgetManager.init();
@@ -1993,6 +2184,7 @@ const App = {
             }
 
             // Add reading
+            if (!utilities.electricity) utilities.electricity = {};
             if (!utilities.electricity.readings) utilities.electricity.readings = [];
             utilities.electricity.readings.unshift({
                 date,
@@ -2002,18 +2194,15 @@ const App = {
                 timestamp: DateTime.now().toISO()
             });
             utilities.electricity.lastReading = reading;
+            utilities.electricity.lastReadingDate = date;
+            utilities.electricity.lastUsage = usage;
+            utilities.electricity.lastCost = cost;
             DataManager.saveUtilities(utilities);
 
-            // Add as expense transaction
-            TransactionsManager.add({
-                date,
-                amount: cost,
-                type: 'expense',
-                category: 'Utilities',
-                description: `Electricity (past): ${usage.toFixed(2)} kWh`,
-                currency: 'THB',
-                paymentMethod: 'bank'
-            });
+            // Update display
+            this.updateElectricityDisplay(utilities.electricity);
+
+            // Note: No longer auto-adding to expenses - user can add manually
 
         } else {
             const date = document.getElementById('pastWaterDate')?.value;
@@ -2039,6 +2228,7 @@ const App = {
             }
 
             // Add reading
+            if (!utilities.water) utilities.water = {};
             if (!utilities.water.readings) utilities.water.readings = [];
             utilities.water.readings.unshift({
                 date,
@@ -2048,18 +2238,15 @@ const App = {
                 timestamp: DateTime.now().toISO()
             });
             utilities.water.lastReading = reading;
+            utilities.water.lastReadingDate = date;
+            utilities.water.lastUsage = usage;
+            utilities.water.lastCost = cost;
             DataManager.saveUtilities(utilities);
 
-            // Add as expense transaction
-            TransactionsManager.add({
-                date,
-                amount: cost,
-                type: 'expense',
-                category: 'Utilities',
-                description: `Water (past): ${usage.toFixed(2)} units`,
-                currency: 'THB',
-                paymentMethod: 'bank'
-            });
+            // Update display
+            this.updateWaterDisplay(utilities.water);
+
+            // Note: No longer auto-adding to expenses - user can add manually
         }
 
         // Update UI
