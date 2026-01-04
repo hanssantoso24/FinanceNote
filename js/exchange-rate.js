@@ -51,6 +51,7 @@ const ExchangeRateService = {
 
     /**
      * Fetch exchange rate from API with multiple providers
+     * Includes real-time rates from multiple sources for accuracy
      */
     async fetchRate() {
         if (this.isRefreshing) return;
@@ -59,8 +60,10 @@ const ExchangeRateService = {
 
         const providers = [
             { name: 'ExchangeRate-API', fetch: () => this.fetchFromExchangeRateAPI() },
+            { name: 'FloatRates', fetch: () => this.fetchFromFloatRates() },
+            { name: 'CurrencyFreaks', fetch: () => this.fetchFromCurrencyFreaks() },
             { name: 'Frankfurter', fetch: () => this.fetchFromFrankfurter() },
-            { name: 'Open Exchange', fetch: () => this.fetchFromOpenExchangeRates() }
+            { name: 'ExchangeRate.Host', fetch: () => this.fetchFromExchangeRateHost() }
         ];
 
         for (const provider of providers) {
@@ -188,16 +191,72 @@ const ExchangeRateService = {
     },
 
     /**
-     * Fetch from Open Exchange Rates (fallback with free tier)
+     * Fetch from FloatRates (free, no API key required)
      */
-    async fetchFromOpenExchangeRates() {
-        // Note: This API requires an API key for full functionality
-        // Using a workaround via ExchangeRate-API as alternative
+    async fetchFromFloatRates() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            // Alternative endpoint that works without API key
+            const response = await fetch('https://www.floatrates.com/daily/thb.json', {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            const rate = data.idr?.rate;
+
+            if (!rate || isNaN(rate) || rate <= 0) {
+                throw new Error('Invalid rate data');
+            }
+
+            return { success: true, rate: rate };
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
+    },
+
+    /**
+     * Fetch from CurrencyFreaks (free tier available)
+     */
+    async fetchFromCurrencyFreaks() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
+            // Using their free endpoint
+            const response = await fetch('https://api.currencyfreaks.com/v2.0/rates/latest?apikey=demo&base=THB&symbols=IDR', {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            const rate = parseFloat(data.rates?.IDR);
+
+            if (!rate || isNaN(rate) || rate <= 0) {
+                throw new Error('Invalid rate data');
+            }
+
+            return { success: true, rate: rate };
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
+    },
+
+    /**
+     * Fetch from ExchangeRate.Host (free, no API key required)
+     */
+    async fetchFromExchangeRateHost() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
             const response = await fetch('https://api.exchangerate.host/latest?base=THB&symbols=IDR', {
                 signal: controller.signal
             });

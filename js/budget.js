@@ -21,6 +21,10 @@ const BudgetManager = {
         this.budget.annualIncome = parseFloat(income);
         DataManager.saveBudget(this.budget);
         this.updateUI();
+        // Auto-sync to cloud if signed in
+        if (typeof FirebaseService !== 'undefined' && FirebaseService.isSignedIn()) {
+            FirebaseService.autoSyncToCloud();
+        }
     },
 
     /**
@@ -30,6 +34,10 @@ const BudgetManager = {
         this.budget.monthlyBudget = parseFloat(budget);
         DataManager.saveBudget(this.budget);
         this.updateUI();
+        // Auto-sync to cloud if signed in
+        if (typeof FirebaseService !== 'undefined' && FirebaseService.isSignedIn()) {
+            FirebaseService.autoSyncToCloud();
+        }
     },
 
     /**

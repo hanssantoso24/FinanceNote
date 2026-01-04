@@ -2328,7 +2328,7 @@ const App = {
                 <h4 style="margin-bottom: 15px;"><i class="fas fa-percentage"></i> Investment Percentages</h4>
 
                 <div class="form-group">
-                    <label class="form-label">Investment Allocation (% of monthly income)</label>
+                    <label class="form-label">Investment Allocation (% of annual income)</label>
                     <div class="input-with-icon">
                         <input type="number" class="form-control" id="investAllocation" value="${totalManualInvestment > 0 ? totalInvestmentVsAnnual : allocation}" min="0" max="100" step="0.1" oninput="App.updateInvestmentFromPercentage('allocation')">
                         <span class="input-icon">%</span>
@@ -2453,11 +2453,11 @@ const App = {
 
     /**
      * Update investment percentages from amount changes (bidirectional)
+     * Note: Allocation is calculated as % of ANNUAL income
      */
     updateInvestmentFromAmount(source) {
         const budget = DataManager.getBudget();
         const annualIncome = budget.annualIncome || 600000;
-        const monthlyIncome = annualIncome / 12;
 
         const stockAmountInput = document.getElementById('investStockAmount');
         const cryptoAmountInput = document.getElementById('investCryptoAmount');
@@ -2467,16 +2467,19 @@ const App = {
 
         const stockAmount = parseFloat(stockAmountInput?.value) || 0;
         const cryptoAmount = parseFloat(cryptoAmountInput?.value) || 0;
-        const totalInvestment = stockAmount + cryptoAmount;
+        const totalMonthlyInvestment = stockAmount + cryptoAmount;
 
-        if (totalInvestment > 0) {
-            // Update allocation percentage
-            const allocationPercent = (totalInvestment / monthlyIncome) * 100;
+        if (totalMonthlyInvestment > 0) {
+            // Update allocation percentage (based on annual income)
+            // Monthly investment * 12 = annual investment
+            // Allocation % = (annual investment / annual income) * 100
+            const annualInvestment = totalMonthlyInvestment * 12;
+            const allocationPercent = (annualInvestment / annualIncome) * 100;
             if (allocationInput) allocationInput.value = allocationPercent.toFixed(1);
 
             // Update stock/crypto split percentages
-            const stockSplitPercent = (stockAmount / totalInvestment) * 100;
-            const cryptoSplitPercent = (cryptoAmount / totalInvestment) * 100;
+            const stockSplitPercent = (stockAmount / totalMonthlyInvestment) * 100;
+            const cryptoSplitPercent = (cryptoAmount / totalMonthlyInvestment) * 100;
             if (stockPercentInput) stockPercentInput.value = Math.round(stockSplitPercent);
             if (cryptoPercentInput) cryptoPercentInput.value = Math.round(cryptoSplitPercent);
         }
@@ -2486,11 +2489,11 @@ const App = {
 
     /**
      * Update investment amounts from percentage changes (bidirectional)
+     * Note: Allocation is % of ANNUAL income
      */
     updateInvestmentFromPercentage(source) {
         const budget = DataManager.getBudget();
         const annualIncome = budget.annualIncome || 600000;
-        const monthlyIncome = annualIncome / 12;
 
         const stockAmountInput = document.getElementById('investStockAmount');
         const cryptoAmountInput = document.getElementById('investCryptoAmount');
@@ -2511,8 +2514,10 @@ const App = {
             if (stockPercentInput) stockPercentInput.value = stockPercent;
         }
 
-        // Calculate total monthly investment from allocation
-        const totalInvestment = (monthlyIncome * allocation) / 100;
+        // Calculate total monthly investment from annual allocation
+        // allocation is % of annual income, then divide by 12 for monthly amount
+        const annualInvestment = (annualIncome * allocation) / 100;
+        const totalInvestment = annualInvestment / 12; // monthly amount
 
         // Calculate individual amounts based on split
         const stockAmount = (totalInvestment * stockPercent) / 100;
@@ -2685,14 +2690,26 @@ const App = {
                 cost,
                 timestamp: DateTime.now().toISO()
             });
+            // Update both legacy and new field names for past reading
             utilities.electricity.lastReading = reading;
             utilities.electricity.lastReadingDate = date;
             utilities.electricity.lastUsage = usage;
             utilities.electricity.lastCost = cost;
+            // Update pastReading fields for front display
+            utilities.electricity.pastReading = reading;
+            utilities.electricity.pastReadingDate = date;
+            // Also update ongoing reading
+            utilities.electricity.ongoingReading = reading;
+            utilities.electricity.ongoingReadingDate = date;
             DataManager.saveUtilities(utilities);
 
-            // Update display
-            this.updateElectricityDisplay(utilities.electricity);
+            // Update front display via UtilitiesManager
+            try {
+                UtilitiesManager.utilities = utilities;
+                UtilitiesManager.updateUI();
+            } catch (e) {
+                console.warn('Could not update UtilitiesManager UI:', e);
+            }
 
             // Note: No longer auto-adding to expenses - user can add manually
 
@@ -2729,20 +2746,36 @@ const App = {
                 cost,
                 timestamp: DateTime.now().toISO()
             });
+            // Update both legacy and new field names for past reading
             utilities.water.lastReading = reading;
             utilities.water.lastReadingDate = date;
             utilities.water.lastUsage = usage;
             utilities.water.lastCost = cost;
+            // Update pastReading fields for front display
+            utilities.water.pastReading = reading;
+            utilities.water.pastReadingDate = date;
+            // Also update ongoing reading
+            utilities.water.ongoingReading = reading;
+            utilities.water.ongoingReadingDate = date;
             DataManager.saveUtilities(utilities);
 
-            // Update display
-            this.updateWaterDisplay(utilities.water);
+            // Update front display via UtilitiesManager
+            try {
+                UtilitiesManager.utilities = utilities;
+                UtilitiesManager.updateUI();
+            } catch (e) {
+                console.warn('Could not update UtilitiesManager UI:', e);
+            }
 
             // Note: No longer auto-adding to expenses - user can add manually
         }
 
-        // Update UI
-        UtilitiesManager.updateUI();
+        // Update UI (in case UtilitiesManager wasn't updated above)
+        try {
+            UtilitiesManager.updateUI();
+        } catch (e) {
+            // Ignore if UtilitiesManager not available
+        }
 
         // Close modal
         const modal = document.getElementById('customModal');

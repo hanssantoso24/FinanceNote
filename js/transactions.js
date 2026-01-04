@@ -22,8 +22,44 @@ const TransactionsManager = {
      */
     init() {
         this.transactions = DataManager.getTransactions();
+        this.populateCategoryFilter();
         this.applyFilters();
         this.render();
+    },
+
+    /**
+     * Populate category filter dropdown with all categories
+     */
+    populateCategoryFilter() {
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (!categoryFilter) return;
+
+        // Get all categories from data
+        const categories = DataManager.getCategories();
+        const allCategories = [
+            ...(categories.income || []),
+            ...(categories.expense || []),
+            ...(categories.transfer || [])
+        ];
+
+        // Remove duplicates
+        const uniqueCategories = [...new Set(allCategories)].sort();
+
+        // Build options HTML
+        let optionsHtml = '<option value="">All Categories</option>';
+        uniqueCategories.forEach(cat => {
+            optionsHtml += `<option value="${cat}">${cat}</option>`;
+        });
+
+        categoryFilter.innerHTML = optionsHtml;
+
+        // Add change event listener
+        categoryFilter.addEventListener('change', (e) => {
+            this.filters.category = e.target.value || 'all';
+            this.currentPage = 1;
+            this.applyFilters();
+            this.render();
+        });
     },
 
     /**
@@ -48,6 +84,11 @@ const TransactionsManager = {
         // Update category spending display
         if (typeof App !== 'undefined' && App.updateCategorySpendingDisplay) {
             App.updateCategorySpendingDisplay();
+        }
+
+        // Auto-sync to cloud if signed in
+        if (typeof FirebaseService !== 'undefined' && FirebaseService.isSignedIn()) {
+            FirebaseService.autoSyncToCloud();
         }
 
         // Trigger event
@@ -87,6 +128,11 @@ const TransactionsManager = {
             App.updateCategorySpendingDisplay();
         }
 
+        // Auto-sync to cloud if signed in
+        if (typeof FirebaseService !== 'undefined' && FirebaseService.isSignedIn()) {
+            FirebaseService.autoSyncToCloud();
+        }
+
         return true;
     },
 
@@ -109,6 +155,11 @@ const TransactionsManager = {
         // Update category spending display
         if (typeof App !== 'undefined' && App.updateCategorySpendingDisplay) {
             App.updateCategorySpendingDisplay();
+        }
+
+        // Auto-sync to cloud if signed in
+        if (typeof FirebaseService !== 'undefined' && FirebaseService.isSignedIn()) {
+            FirebaseService.autoSyncToCloud();
         }
 
         return true;
@@ -348,11 +399,12 @@ const TransactionsManager = {
         if (transactions.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center">No transactions found</td>
+                    <td colspan="9" class="text-center">No transactions found</td>
                 </tr>
             `;
         } else {
-            tbody.innerHTML = transactions.map(t => this.renderRow(t)).join('');
+            const startIndex = (this.currentPage - 1) * this.pageSize;
+            tbody.innerHTML = transactions.map((t, index) => this.renderRow(t, startIndex + index + 1)).join('');
         }
 
         // Render pagination
@@ -399,21 +451,27 @@ const TransactionsManager = {
     /**
      * Render a single transaction row
      */
-    renderRow(t) {
+    renderRow(t, rowNumber) {
         const typeClass = t.type === 'income' ? 'text-success' : t.type === 'expense' ? 'text-danger' : 'text-info';
         const typeIcon = t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '↔';
+        const paymentIcon = t.paymentMethod === 'bank' ? '🏦' : '💵';
+        const paymentLabel = t.paymentMethod === 'bank' ? 'Bank' : 'Cash';
 
         return `
             <tr data-id="${t.id}">
+                <td class="checkbox-col">
+                    <input type="checkbox" class="tx-checkbox" data-id="${t.id}">
+                </td>
+                <td>${rowNumber}</td>
                 <td>${this.formatDate(t.date)}</td>
+                <td>${t.description || '-'}</td>
+                <td class="${typeClass}">
+                    ${typeIcon}฿${ExchangeRateService.formatNumber(t.amount)}
+                </td>
                 <td><span class="badge badge-${t.type}">${t.type}</span></td>
                 <td>${t.category}</td>
-                <td class="${typeClass}">
-                    ${typeIcon}${ExchangeRateService.format(t.amount, t.currency)}
-                </td>
-                <td>${t.currency}</td>
-                <td>${t.description || '-'}</td>
-                <td>
+                <td>${paymentIcon} ${paymentLabel}</td>
+                <td class="actions-col">
                     <button class="btn btn-small" onclick="TransactionsManager.edit('${t.id}')">Edit</button>
                     <button class="btn btn-small btn-danger" onclick="TransactionsManager.confirmDelete('${t.id}')">Delete</button>
                 </td>

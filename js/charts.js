@@ -203,7 +203,7 @@ const ChartsManager = {
     },
 
     /**
-     * Initialize investment projection chart
+     * Initialize investment projection chart (12 months)
      */
     initInvestmentChart() {
         const canvas = document.getElementById('investmentChart');
@@ -212,7 +212,8 @@ const ChartsManager = {
         this.destroyChart('investment');
 
         const projectionData = InvestmentsManager.getProjectionData();
-        const labels = projectionData.map(d => `${d.year}Y`);
+        // Use month labels (M1, M2, ... M12)
+        const labels = projectionData.map(d => `M${d.month}`);
         const values = projectionData.map(d => d.value);
         const invested = projectionData.map(d => d.invested);
 

@@ -21,6 +21,7 @@ const InvestmentsManager = {
         this.investments.allocation = parseFloat(percentage);
         DataManager.saveInvestments(this.investments);
         this.updateUI();
+        this.triggerCloudSync();
     },
 
     /**
@@ -31,6 +32,7 @@ const InvestmentsManager = {
         this.investments.cryptoPercentage = 100 - this.investments.stockPercentage;
         DataManager.saveInvestments(this.investments);
         this.updateUI();
+        this.triggerCloudSync();
     },
 
     /**
@@ -41,6 +43,7 @@ const InvestmentsManager = {
         this.investments.stockPercentage = 100 - this.investments.cryptoPercentage;
         DataManager.saveInvestments(this.investments);
         this.updateUI();
+        this.triggerCloudSync();
     },
 
     /**
@@ -50,6 +53,7 @@ const InvestmentsManager = {
         this.investments.stockReturn = parseFloat(percentage);
         DataManager.saveInvestments(this.investments);
         this.updateUI();
+        this.triggerCloudSync();
     },
 
     /**
@@ -59,15 +63,28 @@ const InvestmentsManager = {
         this.investments.cryptoReturn = parseFloat(percentage);
         DataManager.saveInvestments(this.investments);
         this.updateUI();
+        this.triggerCloudSync();
+    },
+
+    /**
+     * Trigger cloud sync if signed in
+     */
+    triggerCloudSync() {
+        if (typeof FirebaseService !== 'undefined' && FirebaseService.isSignedIn()) {
+            FirebaseService.autoSyncToCloud();
+        }
     },
 
     /**
      * Get monthly investment amount
+     * Note: allocation is % of annual income
      */
     getMonthlyInvestment() {
         const budget = DataManager.getBudget();
-        const monthlyIncome = budget.annualIncome / 12;
-        return (monthlyIncome * this.investments.allocation) / 100;
+        const annualIncome = budget.annualIncome || 600000;
+        // allocation is % of annual income, then divide by 12 for monthly
+        const annualInvestment = (annualIncome * this.investments.allocation) / 100;
+        return annualInvestment / 12;
     },
 
     /**
@@ -113,19 +130,30 @@ const InvestmentsManager = {
     },
 
     /**
-     * Get projection data for chart
+     * Get projection data for chart (monthly for 12 months)
      */
     getProjectionData() {
         const data = [];
-        const years = [1, 5, 10, 15, 20, 25, 30];
+        const monthlyInvestment = this.getMonthlyInvestment();
+        const monthlyRate = this.getWeightedReturn() / 100 / 12;
 
-        years.forEach(year => {
+        // Generate data for 12 months
+        for (let month = 1; month <= 12; month++) {
+            // Future Value of Annuity formula for monthly compounding
+            let value;
+            if (monthlyRate === 0) {
+                value = monthlyInvestment * month;
+            } else {
+                value = monthlyInvestment * (Math.pow(1 + monthlyRate, month) - 1) / monthlyRate;
+            }
+
             data.push({
-                year: year,
-                value: this.projectValue(year),
-                invested: this.getMonthlyInvestment() * year * 12
+                month: month,
+                year: month, // Keep year key for compatibility
+                value: value,
+                invested: monthlyInvestment * month
             });
-        });
+        }
 
         return data;
     },

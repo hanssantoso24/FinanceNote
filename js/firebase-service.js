@@ -135,11 +135,104 @@ const FirebaseService = {
 
     /**
      * Handle user sign in
+     * Automatically syncs data from cloud and sets up real-time listeners
      */
-    onUserSignedIn(user) {
+    async onUserSignedIn(user) {
         console.log('User signed in:', user.email);
+
+        // Sync data from cloud immediately after sign-in
+        try {
+            const result = await this.syncFromCloud();
+            if (result.success && result.data) {
+                console.log('Data synced from cloud');
+                // Reload all managers with synced data
+                if (typeof TransactionsManager !== 'undefined') TransactionsManager.init();
+                if (typeof BudgetManager !== 'undefined') BudgetManager.init();
+                if (typeof InvestmentsManager !== 'undefined') InvestmentsManager.init();
+                if (typeof UtilitiesManager !== 'undefined') {
+                    try { UtilitiesManager.init(); } catch (e) { console.warn('Could not init UtilitiesManager:', e); }
+                }
+                // Refresh UI
+                if (typeof App !== 'undefined' && App.showApp) {
+                    App.showApp();
+                }
+            }
+        } catch (error) {
+            console.warn('Could not sync from cloud on sign-in:', error);
+        }
+
+        // Set up real-time listeners for cross-device sync
+        this.setupRealtimeSync();
+
         // Dispatch custom event
         window.dispatchEvent(new CustomEvent('userSignedIn', { detail: { user } }));
+    },
+
+    /**
+     * Set up real-time sync listener for cross-device synchronization
+     */
+    realtimeUnsubscribe: null,
+    setupRealtimeSync() {
+        // Remove existing listener if any
+        if (this.realtimeUnsubscribe) {
+            this.realtimeUnsubscribe();
+            this.realtimeUnsubscribe = null;
+        }
+
+        if (!this.isSignedIn()) return;
+
+        const userDoc = this.getUserDocRef();
+        if (!userDoc) return;
+
+        this.realtimeUnsubscribe = userDoc.onSnapshot((doc) => {
+            if (doc.exists && !this.syncInProgress) {
+                const data = doc.data();
+                const cloudTimestamp = data.updatedAt?.toDate?.() || new Date(data.data?.lastSync || 0);
+                const localTimestamp = new Date(StorageService.load(CONFIG.storageKeys.lastSync, '1970-01-01'));
+
+                // Only import if cloud data is newer (avoid loop)
+                if (cloudTimestamp > localTimestamp) {
+                    console.log('Received newer data from cloud, updating local...');
+                    const cloudData = data.data;
+                    if (cloudData) {
+                        StorageService.importAll(cloudData);
+                        // Refresh managers without triggering another sync
+                        if (typeof TransactionsManager !== 'undefined') TransactionsManager.init();
+                        if (typeof BudgetManager !== 'undefined') BudgetManager.init();
+                        if (typeof InvestmentsManager !== 'undefined') InvestmentsManager.init();
+                        // Update UI
+                        if (typeof App !== 'undefined') {
+                            if (App.showApp) App.showApp();
+                            if (App.updateCategorySpendingDisplay) App.updateCategorySpendingDisplay();
+                        }
+                        App?.showToast?.('Data synced from another device', 'success');
+                    }
+                }
+            }
+        }, (error) => {
+            console.error('Real-time sync error:', error);
+        });
+
+        console.log('Real-time sync listener set up');
+    },
+
+    /**
+     * Auto-sync local changes to cloud (call this after any data change)
+     */
+    async autoSyncToCloud() {
+        if (!this.isSignedIn()) return;
+
+        // Debounce sync to avoid too many writes
+        if (this.autoSyncTimeout) {
+            clearTimeout(this.autoSyncTimeout);
+        }
+
+        this.autoSyncTimeout = setTimeout(async () => {
+            const result = await this.syncToCloud();
+            if (result.success) {
+                console.log('Auto-synced to cloud');
+            }
+        }, 2000); // Wait 2 seconds before syncing to batch changes
     },
 
     /**
@@ -147,6 +240,19 @@ const FirebaseService = {
      */
     onUserSignedOut() {
         console.log('User signed out');
+
+        // Clean up real-time listener
+        if (this.realtimeUnsubscribe) {
+            this.realtimeUnsubscribe();
+            this.realtimeUnsubscribe = null;
+        }
+
+        // Clear auto-sync timeout
+        if (this.autoSyncTimeout) {
+            clearTimeout(this.autoSyncTimeout);
+            this.autoSyncTimeout = null;
+        }
+
         // Dispatch custom event
         window.dispatchEvent(new CustomEvent('userSignedOut'));
     },
