@@ -1271,6 +1271,177 @@ textarea.form-control {
 }
 
 /* ==========================================
+   CATEGORY SPENDING SECTION
+   ========================================== */
+.category-spending-section {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: 25px;
+    box-shadow: 0 8px 30px var(--shadow);
+    border: 1px solid var(--border);
+    margin-bottom: 25px;
+}
+
+.category-spending-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+    padding: 15px;
+    background: var(--off-white);
+    border-radius: var(--radius-md);
+}
+
+.spending-stat {
+    text-align: center;
+}
+
+.spending-stat .stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.spending-stat .stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.category-spending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.category-spending-list .no-data {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
+}
+
+.category-spending-list .no-data i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    opacity: 0.5;
+}
+
+.category-spending-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+    background: var(--off-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    transition: var(--transition-fast);
+}
+
+.category-spending-item:hover {
+    box-shadow: 0 4px 12px var(--shadow);
+}
+
+.category-spending-item.over-budget {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.category-spending-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.category-spending-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.category-spending-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    background: var(--light-gray);
+    color: var(--text-secondary);
+}
+
+.category-spending-badge.warning {
+    background: var(--warning-light);
+    color: #92400e;
+}
+
+.category-spending-badge.danger {
+    background: var(--danger-light);
+    color: #dc2626;
+}
+
+.category-spending-amounts {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.category-spending-thb {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.category-spending-thb.over-budget {
+    color: var(--danger);
+}
+
+.category-spending-limit {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.category-spending-idr {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+.category-spending-bar {
+    height: 6px;
+    background: var(--light-gray);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.category-spending-bar-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.5s ease;
+}
+
+.category-spending-bar-fill.progress-good {
+    background: var(--gradient-success);
+}
+
+.category-spending-bar-fill.progress-warning {
+    background: var(--gradient-gold);
+}
+
+.category-spending-bar-fill.progress-danger {
+    background: var(--gradient-danger);
+}
+
+@media (max-width: 768px) {
+    .category-spending-summary {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .spending-stat {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+    }
+}
+
+/* ==========================================
    UTILITY SECTION
    ========================================== */
 .utility-section {

@@ -243,7 +243,46 @@ const BudgetManager = {
         const dailyBudget = this.getDailyBudget();
         const remainingDaily = this.getRemainingDailyBudget();
 
-        // Update budget display
+        // Update main budget display (index.html IDs)
+        const monthlyBudgetTHB = document.getElementById('monthlyBudgetTHB');
+        const monthlySpentTHB = document.getElementById('monthlySpentTHB');
+        const monthlyRemainingTHB = document.getElementById('monthlyRemainingTHB');
+        const budgetUsagePercent = document.getElementById('budgetUsagePercent');
+        const budgetProgressBar = document.getElementById('budgetProgressBar');
+        const budgetStatusText = document.getElementById('budgetStatusText');
+        const headerMonthlyBudget = document.getElementById('headerMonthlyBudget');
+
+        if (monthlyBudgetTHB) {
+            monthlyBudgetTHB.textContent = `฿ ${ExchangeRateService.formatNumber(this.budget.monthlyBudget)}`;
+        }
+
+        if (monthlySpentTHB) {
+            monthlySpentTHB.textContent = `฿ ${ExchangeRateService.formatNumber(spent)}`;
+        }
+
+        if (monthlyRemainingTHB) {
+            monthlyRemainingTHB.textContent = `฿ ${ExchangeRateService.formatNumber(remaining)}`;
+            monthlyRemainingTHB.className = remaining >= 0 ? 'remaining-value' : 'remaining-value danger';
+        }
+
+        if (budgetUsagePercent) {
+            budgetUsagePercent.textContent = `${Math.min(percentage, 100).toFixed(0)}%`;
+        }
+
+        if (budgetProgressBar) {
+            budgetProgressBar.style.width = `${Math.min(percentage, 100)}%`;
+            budgetProgressBar.className = `progress-fill progress-${status.class === 'success' ? 'good' : status.class}`;
+        }
+
+        if (budgetStatusText) {
+            budgetStatusText.textContent = status.message;
+        }
+
+        if (headerMonthlyBudget) {
+            headerMonthlyBudget.textContent = `฿ ${ExchangeRateService.formatNumber(this.budget.monthlyBudget)}`;
+        }
+
+        // Legacy element IDs (for modals)
         const budgetDisplay = document.getElementById('monthlyBudgetDisplay');
         const spentDisplay = document.getElementById('budgetSpent');
         const remainingDisplay = document.getElementById('budgetRemaining');

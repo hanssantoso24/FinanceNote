@@ -754,6 +754,50 @@
             </div>
         </div>
 
+        <!-- Category Spending This Month -->
+        <div class="category-spending-section">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div class="card-text">
+                        <h3>Category Spending This Month</h3>
+                        <div class="card-subtitle">
+                            <i class="far fa-calendar-alt"></i>
+                            <span id="categorySpendingMonth">This Month</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline" id="viewAllCategoriesBtn">
+                    <i class="fas fa-expand"></i> View All
+                </button>
+            </div>
+
+            <div class="category-spending-summary">
+                <div class="spending-stat">
+                    <span class="stat-label">Total Spent</span>
+                    <span class="stat-value" id="categoryTotalSpent">฿ 0.00</span>
+                </div>
+                <div class="spending-stat">
+                    <span class="stat-label">Categories</span>
+                    <span class="stat-value" id="categoryCount">0</span>
+                </div>
+                <div class="spending-stat">
+                    <span class="stat-label">Top Category</span>
+                    <span class="stat-value" id="topCategoryName">-</span>
+                </div>
+            </div>
+
+            <div class="category-spending-list" id="categorySpendingList">
+                <!-- Category items will be populated by JavaScript -->
+                <div class="no-data">
+                    <i class="fas fa-chart-bar"></i>
+                    <p>No expenses recorded this month</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Utility Tracking Section -->
         <div class="utility-section">
             <div class="card-header">

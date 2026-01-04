@@ -45,6 +45,11 @@ const TransactionsManager = {
         this.applyFilters();
         this.render();
 
+        // Update category spending display
+        if (typeof App !== 'undefined' && App.updateCategorySpendingDisplay) {
+            App.updateCategorySpendingDisplay();
+        }
+
         // Trigger event
         window.dispatchEvent(new CustomEvent('transactionAdded', { detail: newTransaction }));
 
@@ -77,6 +82,11 @@ const TransactionsManager = {
         this.applyFilters();
         this.render();
 
+        // Update category spending display
+        if (typeof App !== 'undefined' && App.updateCategorySpendingDisplay) {
+            App.updateCategorySpendingDisplay();
+        }
+
         return true;
     },
 
@@ -95,6 +105,11 @@ const TransactionsManager = {
 
         this.applyFilters();
         this.render();
+
+        // Update category spending display
+        if (typeof App !== 'undefined' && App.updateCategorySpendingDisplay) {
+            App.updateCategorySpendingDisplay();
+        }
 
         return true;
     },
@@ -323,7 +338,7 @@ const TransactionsManager = {
      * Render transactions table
      */
     render() {
-        const tbody = document.getElementById('transactionsTableBody');
+        const tbody = document.getElementById('transactionsBody');
         const pagination = document.getElementById('transactionsPagination');
 
         if (!tbody) return;
@@ -344,6 +359,37 @@ const TransactionsManager = {
         if (pagination) {
             const totalPages = this.getTotalPages();
             pagination.innerHTML = this.renderPagination(totalPages);
+        }
+
+        // Update transaction counts in footer
+        const totalTransactionsEl = document.getElementById('totalTransactions');
+        const shownCountEl = document.getElementById('shownCount');
+        const totalCountEl = document.getElementById('totalCount');
+        const currentPageEl = document.getElementById('currentPage');
+
+        if (totalTransactionsEl) {
+            totalTransactionsEl.textContent = this.transactions.length;
+        }
+        if (shownCountEl) {
+            shownCountEl.textContent = transactions.length;
+        }
+        if (totalCountEl) {
+            totalCountEl.textContent = this.filteredTransactions.length;
+        }
+        if (currentPageEl) {
+            currentPageEl.textContent = this.currentPage;
+        }
+
+        // Update prev/next button states
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const totalPages = this.getTotalPages();
+
+        if (prevPageBtn) {
+            prevPageBtn.disabled = this.currentPage <= 1;
+        }
+        if (nextPageBtn) {
+            nextPageBtn.disabled = this.currentPage >= totalPages;
         }
 
         // Update summary

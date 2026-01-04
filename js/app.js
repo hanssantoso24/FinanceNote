@@ -1024,14 +1024,15 @@ const App = {
         TransactionsManager.updateBalanceDisplay();
         BudgetManager.updateUI();
         InvestmentsManager.updateUI();
-        
+        this.updateCategorySpendingDisplay();
+
         // Update Utilities UI only if it initialized successfully
         try {
             UtilitiesManager.updateUI();
         } catch (error) {
             console.warn('Could not update Utilities UI:', error);
         }
-        
+
         ExchangeRateService.updateUI();
     },
 
@@ -1194,6 +1195,13 @@ const App = {
         TransactionsManager.init();
         BudgetManager.init();
         InvestmentsManager.init();
+
+        // Reinitialize utilities manager
+        try {
+            UtilitiesManager.init();
+        } catch (error) {
+            console.warn('Could not reinitialize UtilitiesManager:', error);
+        }
 
         this.showApp();
         this.showToast('Setup complete! Welcome to ' + CONFIG.app.name, 'success');
@@ -1907,6 +1915,131 @@ const App = {
     },
 
     /**
+     * Update Category Spending Display on main page
+     */
+    updateCategorySpendingDisplay() {
+        const budget = DataManager.getBudget();
+        const transactions = DataManager.getTransactions();
+        const rate = ExchangeRateService.getRate();
+        const categoryBudgets = budget.categoryBudgets || {};
+
+        // Calculate category spending for current month
+        const now = DateTime.now();
+        const currentMonth = now.month;
+        const currentYear = now.year;
+
+        const categorySpending = {};
+        transactions.filter(t => {
+            if (t.type !== 'expense') return false;
+            const tDate = DateTime.fromISO(t.date);
+            return tDate.month === currentMonth && tDate.year === currentYear;
+        }).forEach(t => {
+            const cat = t.category || 'Other';
+            if (!categorySpending[cat]) categorySpending[cat] = 0;
+            categorySpending[cat] += parseFloat(t.amount) || 0;
+        });
+
+        const totalSpent = Object.values(categorySpending).reduce((a, b) => a + b, 0);
+        const categoryCount = Object.keys(categorySpending).length;
+
+        // Update summary stats
+        const totalSpentEl = document.getElementById('categoryTotalSpent');
+        const categoryCountEl = document.getElementById('categoryCount');
+        const topCategoryEl = document.getElementById('topCategoryName');
+        const monthNameEl = document.getElementById('categorySpendingMonth');
+
+        if (totalSpentEl) {
+            totalSpentEl.textContent = `฿ ${ExchangeRateService.formatNumber(totalSpent)}`;
+        }
+        if (categoryCountEl) {
+            categoryCountEl.textContent = categoryCount.toString();
+        }
+        if (monthNameEl) {
+            monthNameEl.textContent = now.toFormat('MMMM yyyy');
+        }
+
+        // Find top category
+        let topCategory = '-';
+        let topAmount = 0;
+        Object.entries(categorySpending).forEach(([cat, amount]) => {
+            if (amount > topAmount) {
+                topAmount = amount;
+                topCategory = cat;
+            }
+        });
+        if (topCategoryEl) {
+            topCategoryEl.textContent = topCategory;
+        }
+
+        // Update category spending list
+        const listEl = document.getElementById('categorySpendingList');
+        if (!listEl) return;
+
+        if (categoryCount === 0) {
+            listEl.innerHTML = `
+                <div class="no-data">
+                    <i class="fas fa-chart-bar"></i>
+                    <p>No expenses recorded this month</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort categories by amount descending
+        const sortedCategories = Object.entries(categorySpending).sort((a, b) => b[1] - a[1]);
+        const monthlyBudget = budget.monthlyBudget || 50000;
+
+        let html = '';
+        sortedCategories.forEach(([cat, amount]) => {
+            const catBudget = categoryBudgets[cat] || 0;
+            const idrAmount = amount * rate;
+            let percentage = 0;
+            let isOverBudget = false;
+            let progressClass = 'progress-good';
+            let badgeClass = '';
+            let badgeText = '';
+
+            if (catBudget > 0) {
+                percentage = (amount / catBudget) * 100;
+                isOverBudget = amount > catBudget;
+                if (percentage >= 100) {
+                    progressClass = 'progress-danger';
+                    badgeClass = 'danger';
+                    badgeText = 'Over Budget!';
+                } else if (percentage >= 80) {
+                    progressClass = 'progress-warning';
+                    badgeClass = 'warning';
+                    badgeText = `${percentage.toFixed(0)}% used`;
+                } else {
+                    badgeText = `${percentage.toFixed(0)}% used`;
+                }
+            } else {
+                // Use overall budget percentage if no category budget
+                percentage = monthlyBudget > 0 ? (amount / monthlyBudget) * 100 : 0;
+            }
+
+            html += `
+                <div class="category-spending-item ${isOverBudget ? 'over-budget' : ''}">
+                    <div class="category-spending-header">
+                        <span class="category-spending-name">${cat}</span>
+                        ${badgeText ? `<span class="category-spending-badge ${badgeClass}">${badgeText}</span>` : ''}
+                    </div>
+                    <div class="category-spending-amounts">
+                        <span class="category-spending-thb ${isOverBudget ? 'over-budget' : ''}">฿ ${ExchangeRateService.formatNumber(amount)}</span>
+                        ${catBudget > 0 ? `<span class="category-spending-limit">/ ฿ ${ExchangeRateService.formatNumber(catBudget)}</span>` : ''}
+                    </div>
+                    <div class="category-spending-idr">≈ Rp ${ExchangeRateService.formatNumber(idrAmount)}</div>
+                    <div class="category-spending-bar">
+                        <div class="category-spending-bar-fill ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        listEl.innerHTML = html;
+    },
+
+    /**
      * Open budget configuration modal
      */
     openBudgetModal() {
@@ -2164,21 +2297,27 @@ const App = {
                     </div>
                 </div>
 
-                <h4 style="margin-bottom: 15px;"><i class="fas fa-hand-holding-usd"></i> Manual Investment Amount</h4>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Enter your actual investment amounts (THB per month):</p>
+                <div class="info-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(52, 211, 153, 0.1)); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-sync-alt" style="color: var(--success);"></i>
+                        <span style="font-size: 0.9rem;">Amount and Percentage are bidirectionally linked - changing one will update the other</span>
+                    </div>
+                </div>
+
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-hand-holding-usd"></i> Investment Amounts</h4>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label"><i class="fas fa-chart-bar"></i> Stock Market (THB/mo)</label>
                         <div class="input-with-icon">
-                            <input type="number" class="form-control" id="investStockAmount" value="${stockManualAmount}" min="0" step="100" placeholder="0" onchange="App.updateInvestmentSummary()">
+                            <input type="number" class="form-control" id="investStockAmount" value="${stockManualAmount || stockAmount}" min="0" step="100" placeholder="0" oninput="App.updateInvestmentFromAmount('stock')">
                             <span class="input-icon">฿</span>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label"><i class="fab fa-bitcoin"></i> Crypto (THB/mo)</label>
                         <div class="input-with-icon">
-                            <input type="number" class="form-control" id="investCryptoAmount" value="${cryptoManualAmount}" min="0" step="100" placeholder="0" onchange="App.updateInvestmentSummary()">
+                            <input type="number" class="form-control" id="investCryptoAmount" value="${cryptoManualAmount || cryptoAmount}" min="0" step="100" placeholder="0" oninput="App.updateInvestmentFromAmount('crypto')">
                             <span class="input-icon">฿</span>
                         </div>
                     </div>
@@ -2186,26 +2325,24 @@ const App = {
 
                 <div class="section-divider" style="margin: 20px 0;"></div>
 
-                <h4 style="margin-bottom: 15px;"><i class="fas fa-percentage"></i> OR Use Percentage of Income</h4>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Set investment as percentage (will be ignored if manual amounts are set):</p>
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-percentage"></i> Investment Percentages</h4>
 
                 <div class="form-group">
                     <label class="form-label">Investment Allocation (% of monthly income)</label>
                     <div class="input-with-icon">
-                        <input type="number" class="form-control" id="investAllocation" value="${allocation}" min="0" max="100" step="1" onchange="App.updateInvestmentSummary()">
+                        <input type="number" class="form-control" id="investAllocation" value="${totalManualInvestment > 0 ? totalInvestmentVsAnnual : allocation}" min="0" max="100" step="0.1" oninput="App.updateInvestmentFromPercentage('allocation')">
                         <span class="input-icon">%</span>
                     </div>
-                    <small class="form-hint">If manual amounts above are 0, this will be used</small>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Stock Split (%)</label>
-                        <input type="number" class="form-control" id="investStockPercent" value="${stockPercentage}" min="0" max="100" step="1">
+                        <input type="number" class="form-control" id="investStockPercent" value="${stockPercentage}" min="0" max="100" step="1" oninput="App.updateInvestmentFromPercentage('stockSplit')">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Crypto Split (%)</label>
-                        <input type="number" class="form-control" id="investCryptoPercent" value="${cryptoPercentage}" min="0" max="100" step="1">
+                        <input type="number" class="form-control" id="investCryptoPercent" value="${cryptoPercentage}" min="0" max="100" step="1" oninput="App.updateInvestmentFromPercentage('cryptoSplit')">
                     </div>
                 </div>
 
@@ -2312,6 +2449,80 @@ const App = {
         if (summaryCryptoAmount) summaryCryptoAmount.textContent = `฿${ExchangeRateService.formatNumber(cryptoAmount)}/mo`;
         if (summaryMonthlyReturn) summaryMonthlyReturn.textContent = `+฿${ExchangeRateService.formatNumber(expectedMonthlyReturn)}`;
         if (summaryAnnualReturn) summaryAnnualReturn.textContent = `+฿${ExchangeRateService.formatNumber(expectedAnnualReturn)}`;
+    },
+
+    /**
+     * Update investment percentages from amount changes (bidirectional)
+     */
+    updateInvestmentFromAmount(source) {
+        const budget = DataManager.getBudget();
+        const annualIncome = budget.annualIncome || 600000;
+        const monthlyIncome = annualIncome / 12;
+
+        const stockAmountInput = document.getElementById('investStockAmount');
+        const cryptoAmountInput = document.getElementById('investCryptoAmount');
+        const allocationInput = document.getElementById('investAllocation');
+        const stockPercentInput = document.getElementById('investStockPercent');
+        const cryptoPercentInput = document.getElementById('investCryptoPercent');
+
+        const stockAmount = parseFloat(stockAmountInput?.value) || 0;
+        const cryptoAmount = parseFloat(cryptoAmountInput?.value) || 0;
+        const totalInvestment = stockAmount + cryptoAmount;
+
+        if (totalInvestment > 0) {
+            // Update allocation percentage
+            const allocationPercent = (totalInvestment / monthlyIncome) * 100;
+            if (allocationInput) allocationInput.value = allocationPercent.toFixed(1);
+
+            // Update stock/crypto split percentages
+            const stockSplitPercent = (stockAmount / totalInvestment) * 100;
+            const cryptoSplitPercent = (cryptoAmount / totalInvestment) * 100;
+            if (stockPercentInput) stockPercentInput.value = Math.round(stockSplitPercent);
+            if (cryptoPercentInput) cryptoPercentInput.value = Math.round(cryptoSplitPercent);
+        }
+
+        this.updateInvestmentSummary();
+    },
+
+    /**
+     * Update investment amounts from percentage changes (bidirectional)
+     */
+    updateInvestmentFromPercentage(source) {
+        const budget = DataManager.getBudget();
+        const annualIncome = budget.annualIncome || 600000;
+        const monthlyIncome = annualIncome / 12;
+
+        const stockAmountInput = document.getElementById('investStockAmount');
+        const cryptoAmountInput = document.getElementById('investCryptoAmount');
+        const allocationInput = document.getElementById('investAllocation');
+        const stockPercentInput = document.getElementById('investStockPercent');
+        const cryptoPercentInput = document.getElementById('investCryptoPercent');
+
+        const allocation = parseFloat(allocationInput?.value) || 0;
+        let stockPercent = parseFloat(stockPercentInput?.value) || 0;
+        let cryptoPercent = parseFloat(cryptoPercentInput?.value) || 0;
+
+        // Handle split percentage changes - auto-adjust the other
+        if (source === 'stockSplit') {
+            cryptoPercent = 100 - stockPercent;
+            if (cryptoPercentInput) cryptoPercentInput.value = cryptoPercent;
+        } else if (source === 'cryptoSplit') {
+            stockPercent = 100 - cryptoPercent;
+            if (stockPercentInput) stockPercentInput.value = stockPercent;
+        }
+
+        // Calculate total monthly investment from allocation
+        const totalInvestment = (monthlyIncome * allocation) / 100;
+
+        // Calculate individual amounts based on split
+        const stockAmount = (totalInvestment * stockPercent) / 100;
+        const cryptoAmount = (totalInvestment * cryptoPercent) / 100;
+
+        // Update amount inputs
+        if (stockAmountInput) stockAmountInput.value = Math.round(stockAmount);
+        if (cryptoAmountInput) cryptoAmountInput.value = Math.round(cryptoAmount);
+
+        this.updateInvestmentSummary();
     },
 
     /**

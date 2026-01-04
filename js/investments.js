@@ -162,14 +162,66 @@ const InvestmentsManager = {
      * Update UI with investment data
      */
     updateUI() {
-        const monthlyInvestment = this.getMonthlyInvestment();
-        const stockAmount = this.getStockInvestment();
-        const cryptoAmount = this.getCryptoInvestment();
-        const weightedReturn = this.getWeightedReturn();
+        // Check for manual amounts first
+        const stockManualAmount = this.investments.stockManualAmount || 0;
+        const cryptoManualAmount = this.investments.cryptoManualAmount || 0;
+        const totalManualInvestment = stockManualAmount + cryptoManualAmount;
+
+        const monthlyInvestment = totalManualInvestment > 0 ? totalManualInvestment : this.getMonthlyInvestment();
+        const stockAmount = totalManualInvestment > 0 ? stockManualAmount : this.getStockInvestment();
+        const cryptoAmount = totalManualInvestment > 0 ? cryptoManualAmount : this.getCryptoInvestment();
+        const stockReturn = this.investments.stockReturn || 1.5;
+        const cryptoReturn = this.investments.cryptoReturn || 3.0;
+
+        // Calculate monthly and annual profit
+        const monthlyProfit = (stockAmount * stockReturn / 100) + (cryptoAmount * cryptoReturn / 100);
+        const annualProfit = monthlyProfit * 12;
         const fireNumber = this.getFIRENumber();
         const yearsToFire = this.getYearsToFIRE();
 
-        // Update displays
+        // Update main display (index.html element IDs)
+        const stockAmountTHB = document.getElementById('stockAmountTHB');
+        const cryptoAmountTHB = document.getElementById('cryptoAmountTHB');
+        const stockPercentageEl = document.getElementById('stockPercentage');
+        const cryptoPercentageEl = document.getElementById('cryptoPercentage');
+        const stockTargetReturn = document.getElementById('stockTargetReturn');
+        const cryptoTargetReturn = document.getElementById('cryptoTargetReturn');
+        const totalProfitTHB = document.getElementById('totalProfitTHB');
+        const annualProfitTHB = document.getElementById('annualProfitTHB');
+
+        if (stockAmountTHB) {
+            stockAmountTHB.textContent = `฿ ${ExchangeRateService.formatNumber(stockAmount)}`;
+        }
+
+        if (cryptoAmountTHB) {
+            cryptoAmountTHB.textContent = `฿ ${ExchangeRateService.formatNumber(cryptoAmount)}`;
+        }
+
+        if (stockPercentageEl) {
+            stockPercentageEl.textContent = `${this.investments.stockPercentage || 70}%`;
+        }
+
+        if (cryptoPercentageEl) {
+            cryptoPercentageEl.textContent = `${this.investments.cryptoPercentage || 30}%`;
+        }
+
+        if (stockTargetReturn) {
+            stockTargetReturn.textContent = `${stockReturn}`;
+        }
+
+        if (cryptoTargetReturn) {
+            cryptoTargetReturn.textContent = `${cryptoReturn}`;
+        }
+
+        if (totalProfitTHB) {
+            totalProfitTHB.textContent = `฿ ${ExchangeRateService.formatNumber(monthlyProfit)}`;
+        }
+
+        if (annualProfitTHB) {
+            annualProfitTHB.textContent = `฿ ${ExchangeRateService.formatNumber(annualProfit)}`;
+        }
+
+        // Legacy displays (for modals)
         const monthlyDisplay = document.getElementById('monthlyInvestment');
         const stockDisplay = document.getElementById('stockInvestment');
         const cryptoDisplay = document.getElementById('cryptoInvestment');
@@ -190,7 +242,7 @@ const InvestmentsManager = {
         }
 
         if (returnDisplay) {
-            returnDisplay.textContent = `${weightedReturn.toFixed(2)}%`;
+            returnDisplay.textContent = `${this.getWeightedReturn().toFixed(2)}%`;
         }
 
         if (fireDisplay) {
